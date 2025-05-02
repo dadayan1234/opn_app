@@ -19,39 +19,103 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final success = await AuthService.login(username, password);
     if (success) {
-      // Navigasi ke halaman utama atau dashboard
+      final userInfo = await AuthService.getUserInfo();
+
+      if (userInfo != null && userInfo['member_info'] != null) {
+        final info = userInfo['member_info'];
+        if (info['full_name'] == null || info['full_name'].toString().isEmpty) {
+          Navigator.pushReplacementNamed(context, '/biodata');
+        } else {
+          final fullName = info['full_name'];
+          Navigator.pushReplacementNamed(
+            context,
+            '/dashboard',
+            arguments: fullName,
+          );
+        }
+      } else {
+        Navigator.pushReplacementNamed(context, '/biodata');
+      }
     } else {
-      // Tampilkan pesan error
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Login gagal')));
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Masuk')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const SizedBox(height: 60),
+            const Placeholder(fallbackHeight: 120),
+            const SizedBox(height: 20),
+            const Text(
+              'Login',
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 10),
+            const Text(
+              'Masuk menggunakan akun Anda untuk menggunakan aplikasi',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey),
+            ),
+            const SizedBox(height: 30),
             TextField(
               controller: _usernameController,
-              decoration: InputDecoration(labelText: 'Nama Pengguna'),
+              decoration: InputDecoration(
+                labelText: 'Username',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
+            const SizedBox(height: 15),
             TextField(
               controller: _passwordController,
-              decoration: InputDecoration(labelText: 'Kata Sandi'),
               obscureText: true,
+              decoration: InputDecoration(
+                labelText: 'Password',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
-            SizedBox(height: 20),
-            ElevatedButton(onPressed: _login, child: Text('Masuk')),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              onPressed: _login,
+              child: const Text(
+                'MASUK',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
             TextButton(
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => RegisterScreen()),
+                  MaterialPageRoute(builder: (_) => const RegisterScreen()),
                 );
               },
-              child: Text('Belum punya akun? Daftar'),
+              child: const Text.rich(
+                TextSpan(
+                  text: 'Belum punya akun? ',
+                  children: [
+                    TextSpan(
+                      text: 'Daftar',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
