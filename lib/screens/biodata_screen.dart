@@ -20,52 +20,17 @@ class _BiodataFormScreenState extends State<BiodataFormScreen> {
   final _tempatLahirController = TextEditingController();
   final _tglLahirController = TextEditingController();
   final _alamatController = TextEditingController();
-  final _fotoController = TextEditingController();
   String? _divisi;
-
   File? _selectedImage;
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final image = await picker.pickImage(source: ImageSource.gallery);
 
-    if (image == null) return;
-
-    setState(() {
-      _selectedImage = File(image.path);
-    });
-
-    await _uploadImage(_selectedImage!);
-  }
-
-  Future<void> _uploadImage(File imageFile) async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('access_token');
-
-    final userInfo = await _getUserInfo(token!);
-    final userId = userInfo?['id'];
-
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse('https://beopn.mysesa.site/api/v1/uploads/users/$userId/photo'),
-    );
-    request.headers['Authorization'] = 'Bearer $token';
-    request.headers['accept'] = 'application/json';
-
-    request.files.add(
-      await http.MultipartFile.fromPath('file', imageFile.path),
-    );
-
-    final streamedResponse = await request.send();
-    final response = await http.Response.fromStream(streamedResponse);
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      _fotoController.text = data['url']; // asumsikan `url` ada di response
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Upload gambar gagal')));
+    if (image != null) {
+      setState(() {
+        _selectedImage = File(image.path);
+      });
     }
   }
 
@@ -76,20 +41,49 @@ class _BiodataFormScreenState extends State<BiodataFormScreen> {
     );
 
     if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      return data;
+      return jsonDecode(response.body);
     }
     return null;
   }
 
+  Future<void> _uploadImage(File imageFile, int userId, String token) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('https://beopn.mysesa.site/api/v1/uploads/users/$userId/photo'),
+    );
+    request.headers['Authorization'] = 'Bearer $token';
+    request.headers['accept'] = 'application/json';
+    request.files.add(
+      await http.MultipartFile.fromPath('file', imageFile.path),
+    );
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    if (response.statusCode == 200) {
+      // Optional: tampilkan notifikasi berhasil upload gambar
+    } else {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Upload gambar gagal')));
+    }
+  }
+
   Future<void> _submitBiodata() async {
+    if (!_formKey.currentState!.validate()) return;
+
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('access_token');
 
-    final url = Uri.parse('https://beopn.mysesa.site/api/v1/members/biodata/');
+    if (token == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Token tidak ditemukan.')));
+      return;
+    }
 
-    final response = await http.post(
-      url,
+    final biodataResponse = await http.post(
+      Uri.parse('https://beopn.mysesa.site/api/v1/members/biodata/'),
       headers: {
         'accept': 'application/json',
         'Authorization': 'Bearer $token',
@@ -103,11 +97,19 @@ class _BiodataFormScreenState extends State<BiodataFormScreen> {
         "birth_date": _tglLahirController.text,
         "division": _divisi,
         "address": _alamatController.text,
-        "photo_url": _fotoController.text,
+        "photo_url": "/uploads/users/default.jpg", // dummy
       }),
     );
 
-    if (response.statusCode == 200 || response.statusCode == 201) {
+    if (biodataResponse.statusCode == 200 ||
+        biodataResponse.statusCode == 201) {
+      final userInfo = await _getUserInfo(token);
+      final userId = userInfo?['id'];
+
+      if (_selectedImage != null && userId != null) {
+        await _uploadImage(_selectedImage!, userId, token);
+      }
+
       Navigator.pushReplacementNamed(context, '/dashboard');
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -142,14 +144,23 @@ class _BiodataFormScreenState extends State<BiodataFormScreen> {
               TextFormField(
                 controller: _namaController,
                 decoration: const InputDecoration(labelText: 'Nama Lengkap'),
+                validator:
+                    (value) =>
+                        value == null || value.isEmpty ? 'Wajib diisi' : null,
               ),
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(labelText: 'Email'),
+                validator:
+                    (value) =>
+                        value == null || value.isEmpty ? 'Wajib diisi' : null,
               ),
               TextFormField(
                 controller: _hpController,
                 decoration: const InputDecoration(labelText: 'No. HP'),
+                validator:
+                    (value) =>
+                        value == null || value.isEmpty ? 'Wajib diisi' : null,
               ),
               TextFormField(
                 controller: _tempatLahirController,
@@ -205,14 +216,6 @@ class _BiodataFormScreenState extends State<BiodataFormScreen> {
                           ),
                         )
                         : Image.file(_selectedImage!, height: 150),
-              ),
-              const SizedBox(height: 10),
-              TextFormField(
-                controller: _fotoController,
-                decoration: const InputDecoration(
-                  labelText: 'Photo URL (otomatis setelah upload)',
-                ),
-                readOnly: true,
               ),
               const SizedBox(height: 20),
               ElevatedButton(
