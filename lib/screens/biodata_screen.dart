@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
+import 'package:http_parser/http_parser.dart';
 
 class BiodataFormScreen extends StatefulWidget {
   const BiodataFormScreen({super.key});
@@ -42,8 +43,10 @@ class _BiodataFormScreenState extends State<BiodataFormScreen> {
 
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
+    } else {
+      print('Gagal ambil info user: ${response.body}');
+      return null;
     }
-    return null;
   }
 
   Future<void> _uploadImage(File imageFile, int userId, String token) async {
@@ -53,19 +56,25 @@ class _BiodataFormScreenState extends State<BiodataFormScreen> {
     );
     request.headers['Authorization'] = 'Bearer $token';
     request.headers['accept'] = 'application/json';
+
     request.files.add(
-      await http.MultipartFile.fromPath('file', imageFile.path),
+      await http.MultipartFile.fromPath(
+        'file',
+        imageFile.path,
+        contentType: MediaType('image', 'jpeg'),
+      ),
     );
 
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
 
     if (response.statusCode == 200) {
-      // Optional: tampilkan notifikasi berhasil upload gambar
+      print('Upload gambar berhasil');
     } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Upload gambar gagal')));
+      print('Upload gambar gagal: ${response.body}');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Upload gambar gagal: ${response.statusCode}')),
+      );
     }
   }
 
@@ -97,7 +106,7 @@ class _BiodataFormScreenState extends State<BiodataFormScreen> {
         "birth_date": _tglLahirController.text,
         "division": _divisi,
         "address": _alamatController.text,
-        "photo_url": "/uploads/users/default.jpg", // dummy
+        "photo_url": "/uploads/users/default.jpg",
       }),
     );
 
@@ -106,12 +115,13 @@ class _BiodataFormScreenState extends State<BiodataFormScreen> {
       final userInfo = await _getUserInfo(token);
       final userId = userInfo?['id'];
 
-      if (_selectedImage != null && userId != null) {
+      if (_selectedImage != null && userId != null && userId is int) {
         await _uploadImage(_selectedImage!, userId, token);
       }
 
       Navigator.pushReplacementNamed(context, '/dashboard');
     } else {
+      print('Gagal kirim biodata: ${biodataResponse.body}');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Gagal mengirim data biodata.')),
       );
