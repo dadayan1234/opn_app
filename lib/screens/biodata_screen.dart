@@ -106,7 +106,7 @@ class _BiodataFormScreenState extends State<BiodataFormScreen> {
         "birth_date": _tglLahirController.text,
         "division": _divisi,
         "address": _alamatController.text,
-        "photo_url": "/uploads/users/default.jpg",
+        "photo_url": "/uploads/users/default.jpg", // dummy
       }),
     );
 
@@ -115,13 +115,18 @@ class _BiodataFormScreenState extends State<BiodataFormScreen> {
       final userInfo = await _getUserInfo(token);
       final userId = userInfo?['id'];
 
-      if (_selectedImage != null && userId != null && userId is int) {
+      if (_selectedImage != null && userId != null) {
         await _uploadImage(_selectedImage!, userId, token);
       }
 
-      Navigator.pushReplacementNamed(context, '/dashboard');
+      final fullName =
+          _namaController.text.isNotEmpty ? _namaController.text : 'Pengguna';
+      Navigator.pushReplacementNamed(
+        context,
+        '/dashboard',
+        arguments: fullName,
+      );
     } else {
-      print('Gagal kirim biodata: ${biodataResponse.body}');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Gagal mengirim data biodata.')),
       );
