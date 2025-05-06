@@ -15,11 +15,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final username = _usernameController.text;
     final password = _passwordController.text;
 
-    final success = await AuthService.register(username, password);
-    if (success) {
-      // Navigasi ke halaman utama atau dashboard
-    } else {
-      // Tampilkan pesan error
+    try {
+      final success = await AuthService.register(username, password);
+      if (success) {
+        // Tampilkan pesan sukses
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Pendaftaran berhasil')));
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
+      } else {
+        // Tampilkan pesan gagal
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Pendaftaran gagal')));
+      }
+    } catch (e) {
+      print('Register Error: $e');
     }
   }
 
