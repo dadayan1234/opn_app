@@ -22,7 +22,7 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (context) => const SplashScreen(),
         '/login': (context) => const LoginScreen(),
-        '/register': (context) => const RegisterScreen(),
+        '/register': (context) => RegisterScreen(),
         '/biodata': (context) => const BiodataFormScreen(),
         '/dashboard': (context) {
           final fullName = ModalRoute.of(context)?.settings.arguments as String;

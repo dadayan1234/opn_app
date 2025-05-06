@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({super.key});
-
   @override
   _RegisterScreenState createState() => _RegisterScreenState();
 }
@@ -27,76 +26,27 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+      appBar: AppBar(title: Text('Daftar')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const SizedBox(height: 60),
-            const Placeholder(fallbackHeight: 120),
-            const SizedBox(height: 20),
-            const Text(
-              'Register',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'Silahkan buat akun Anda terlebih dahulu untuk memudahkan menggunakan aplikasi',
-              style: TextStyle(color: Colors.grey),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 30),
             TextField(
               controller: _usernameController,
-              decoration: InputDecoration(
-                labelText: 'Username',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
+              decoration: InputDecoration(labelText: 'Nama Pengguna'),
             ),
-            const SizedBox(height: 15),
             TextField(
               controller: _passwordController,
+              decoration: InputDecoration(labelText: 'Kata Sandi'),
               obscureText: true,
-              decoration: InputDecoration(
-                labelText: 'Password',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurple,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              onPressed: _register,
-              child: const Text(
-                'DAFTAR',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(height: 10),
-            Center(
-              child: TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: const Text.rich(
-                  TextSpan(
-                    text: 'Sudah punya akun? ',
-                    children: [
-                      TextSpan(
-                        text: 'Masuk',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+            SizedBox(height: 20),
+            ElevatedButton(onPressed: _register, child: Text('Daftar')),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: Text('Sudah punya akun? Masuk'),
             ),
           ],
         ),
