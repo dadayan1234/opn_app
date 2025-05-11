@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -137,21 +138,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _buildUserCard(String fullName, String? photoUrl) {
-    return Card(
-      child: ListTile(
-        leading: CircleAvatar(
-          radius: 30,
-          backgroundImage:
-              photoUrl != null
-                  ? CachedNetworkImageProvider(
-                    "https://beopn.mysesa.site$photoUrl",
-                  )
-                  : null,
-          child: photoUrl == null ? const Icon(Icons.person) : null,
-        ),
-        title: Text(fullName, style: const TextStyle(fontSize: 18)),
-        subtitle: const Text("Selamat datang!"),
+    return FutureBuilder<String?>(
+      future: SharedPreferences.getInstance().then(
+        (prefs) => prefs.getString('access_token'),
       ),
+      builder: (context, snapshot) {
+        final token = snapshot.data;
+        return Card(
+          child: ListTile(
+            leading: CircleAvatar(
+              radius: 30,
+              backgroundImage:
+                  photoUrl != null && token != null
+                      ? CachedNetworkImageProvider(
+                        "https://beopn.mysesa.site/$photoUrl",
+                        headers: {
+                          'accept': 'application/json',
+                          'Authorization': 'Bearer $token',
+                        },
+                      )
+                      : null,
+              child: photoUrl == null ? const Icon(Icons.person) : null,
+            ),
+            title: Text(fullName, style: const TextStyle(fontSize: 18)),
+            subtitle: const Text("Selamat datang!"),
+          ),
+        );
+      },
     );
   }
 
