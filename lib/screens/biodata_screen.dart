@@ -106,7 +106,7 @@ class _BiodataFormScreenState extends State<BiodataFormScreen> {
         "birth_date": _tglLahirController.text,
         "division": _divisi,
         "address": _alamatController.text,
-        "photo_url": "/uploads/users/default.jpg", // dummy
+        "photo_url": "/default.jpg", // dummy
       }),
     );
 
