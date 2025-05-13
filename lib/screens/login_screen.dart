@@ -12,35 +12,79 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  bool _isObscure = true;
+  bool _isLoading = false;
 
   void _login() async {
+    if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Username dan password tidak boleh kosong'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
     final username = _usernameController.text;
     final password = _passwordController.text;
 
-    final success = await AuthService.login(username, password);
-    if (success) {
-      final userInfo = await AuthService.getUserInfo();
+    try {
+      final success = await AuthService.login(username, password);
+      if (success) {
+        // Request notification permission after successful login
+        _requestNotificationPermission();
 
-      if (userInfo != null && userInfo['member_info'] != null) {
-        final info = userInfo['member_info'];
-        if (info['full_name'] == null || info['full_name'].toString().isEmpty) {
-          Navigator.pushReplacementNamed(context, '/biodata');
+        final userInfo = await AuthService.getUserInfo();
+
+        if (userInfo != null && userInfo['member_info'] != null) {
+          final info = userInfo['member_info'];
+          if (info['full_name'] == null ||
+              info['full_name'].toString().isEmpty) {
+            if (mounted) Navigator.pushReplacementNamed(context, '/biodata');
+          } else {
+            final fullName = info['full_name'];
+            if (mounted) {
+              Navigator.pushReplacementNamed(
+                context,
+                '/dashboard',
+                arguments: fullName,
+              );
+            }
+          }
         } else {
-          final fullName = info['full_name'];
-          Navigator.pushReplacementNamed(
-            context,
-            '/dashboard',
-            arguments: fullName,
-          );
+          if (mounted) Navigator.pushReplacementNamed(context, '/biodata');
         }
       } else {
-        Navigator.pushReplacementNamed(context, '/biodata');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Login gagal, cek username dan password'),
+            ),
+          );
+        }
       }
-    } else {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Login gagal')));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
+  }
+
+  Future<void> _requestNotificationPermission() async {
+    // We'll implement this in the FCM section
+    // This is a placeholder for now
   }
 
   @override
@@ -52,7 +96,8 @@ class _LoginScreenState extends State<LoginScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 60),
-            const Placeholder(fallbackHeight: 120),
+            // Replace Placeholder with Image
+            Image.asset('assets/images/logo_opn.png', height: 120, width: 120),
             const SizedBox(height: 20),
             const Text(
               'Login',
@@ -70,6 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
               controller: _usernameController,
               decoration: InputDecoration(
                 labelText: 'Username',
+                prefixIcon: const Icon(Icons.person),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -78,29 +124,45 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 15),
             TextField(
               controller: _passwordController,
-              obscureText: true,
+              obscureText: _isObscure,
               decoration: InputDecoration(
                 labelText: 'Password',
+                prefixIcon: const Icon(Icons.lock),
+                suffixIcon: IconButton(
+                  icon: Icon(
+                    _isObscure ? Icons.visibility : Icons.visibility_off,
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _isObscure = !_isObscure;
+                    });
+                  },
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
             ),
             const SizedBox(height: 20),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurple,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-              onPressed: _login,
-              child: const Text(
-                'MASUK',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Color.fromARGB(255, 255, 214, 250),
+            _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepPurple,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: _login,
+                  child: const Text(
+                    'MASUK',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
                 ),
-              ),
-            ),
             TextButton(
               onPressed: () {
                 Navigator.push(
@@ -114,7 +176,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     TextSpan(
                       text: 'Daftar',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.deepPurple,
+                      ),
                     ),
                   ],
                 ),

@@ -18,20 +18,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Map<String, dynamic>? userInfo;
   List<dynamic> events = [];
   List<dynamic> news = [];
+  String? authToken;
 
   @override
   void initState() {
     super.initState();
-    _fetchAll();
+    _getToken().then((_) => _fetchAll());
+  }
+
+  Future<void> _getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      authToken = prefs.getString('access_token');
+    });
   }
 
   Future<void> _fetchAll() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('access_token');
+    if (authToken == null) return;
 
     final headers = {
       'accept': 'application/json',
-      'Authorization': 'Bearer $token',
+      'Authorization': 'Bearer $authToken',
     };
 
     final userRes = await http.get(
@@ -62,6 +69,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  void _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('access_token');
+    // Navigate to login screen
+    if (mounted) {
+      Navigator.of(context).pushReplacementNamed(
+        '/login',
+      ); // Adjust this according to your navigation setup
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final photoUrl = userInfo?['member_info']?['photo_url'];
@@ -71,93 +89,171 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Dashboard')),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+      body: SafeArea(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (userInfo != null) _buildUserCard(fullName, photoUrl),
-            const SizedBox(height: 20),
+            _buildCustomHeader(photoUrl),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (userInfo != null) _buildUserCard(fullName, photoUrl),
+                    const SizedBox(height: 20),
 
-            const Text(
-              'Event Terbaru:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              height: 150,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: events.length,
-                itemBuilder: (context, index) {
-                  final event = events[index];
-                  return GestureDetector(
-                    onTap: () {},
-                    child: _buildEventCard(event),
-                  );
-                },
+                    const Text(
+                      'Event Terbaru:',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      height: 150,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: events.length,
+                        itemBuilder: (context, index) {
+                          final event = events[index];
+                          return _buildEventCard(event);
+                        },
+                      ),
+                    ),
+
+                    const SizedBox(height: 20),
+                    _buildNavIcons(),
+
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Berita Terbaru:',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    Column(
+                      children:
+                          news.map((item) => _buildNewsCard(item)).toList(),
+                    ),
+                  ],
+                ),
               ),
             ),
-
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                _buildNavIcon(Icons.event, 'Event', () {}),
-                _buildNavIcon(Icons.article, 'Berita', () {}),
-                _buildNavIcon(Icons.money, 'Keuangan', () {}),
-              ],
-            ),
-
-            const SizedBox(height: 20),
-            const Text(
-              'Berita Terbaru:',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            Column(children: news.map((item) => _buildNewsCard(item)).toList()),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildUserCard(String fullName, String? photoUrl) {
-    return FutureBuilder<String?>(
-      future: SharedPreferences.getInstance().then(
-        (prefs) => prefs.getString('access_token'),
-      ),
-      builder: (context, snapshot) {
-        final token = snapshot.data;
-        return Card(
-          child: ListTile(
-            leading: CircleAvatar(
-              radius: 30,
-              backgroundImage:
-                  (photoUrl != null && token != null)
-                      ? CachedNetworkImageProvider(
-                        "https://beopn.mysesa.site/$photoUrl",
-                        headers: {
-                          'accept': 'application/json',
-                          'Authorization': 'Bearer $token',
-                        },
-                      )
-                      : null,
-              child: photoUrl == null ? const Icon(Icons.person) : null,
+  Widget _buildCustomHeader(String? photoUrl) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      color: Colors.deepPurple,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // Logo on the left
+          Container(
+            height: 40,
+            width: 40,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
             ),
-            title: Text(fullName, style: const TextStyle(fontSize: 18)),
-            subtitle: const Text("Selamat datang!"),
+            child: const Center(
+              child: Text(
+                "SESA",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.deepPurple,
+                ),
+              ),
+            ),
           ),
-        );
-      },
+
+          const Text(
+            "Dashboard",
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+
+          // Profile and logout icons on the right
+          Row(
+            children: [
+              if (photoUrl != null && authToken != null)
+                GestureDetector(
+                  onTap: () {
+                    // Navigate to profile page
+                  },
+                  child: CircleAvatar(
+                    radius: 16,
+                    backgroundImage: CachedNetworkImageProvider(
+                      "https://beopn.mysesa.site/$photoUrl",
+                      headers: {
+                        'accept': 'application/json',
+                        'Authorization': 'Bearer $authToken',
+                      },
+                    ),
+                  ),
+                )
+              else
+                GestureDetector(
+                  onTap: () {
+                    // Navigate to profile page
+                  },
+                  child: const CircleAvatar(
+                    radius: 16,
+                    child: Icon(Icons.person, size: 18),
+                  ),
+                ),
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: _logout,
+                child: const Icon(Icons.logout, color: Colors.white),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserCard(String fullName, String? photoUrl) {
+    return Card(
+      child: ListTile(
+        leading: CircleAvatar(
+          radius: 30,
+          backgroundImage:
+              (photoUrl != null && authToken != null)
+                  ? CachedNetworkImageProvider(
+                    "https://beopn.mysesa.site/$photoUrl",
+                    headers: {
+                      'accept': 'application/json',
+                      'Authorization': 'Bearer $authToken',
+                    },
+                  )
+                  : null,
+          child: photoUrl == null ? const Icon(Icons.person) : null,
+        ),
+        title: Text(fullName, style: const TextStyle(fontSize: 18)),
+        subtitle: const Text("Selamat datang!"),
+      ),
     );
   }
 
   Widget _buildEventCard(dynamic event) {
-    var imagepath = '/uploads/events/2025-05-13/2025-05/1747106713609_0.jpg';
-    final imageUrl =
-        imagepath.isNotEmpty ? "https://beopn.mysesa.site/$imagepath" : null;
+    String imagePath = event['photo_url'] ?? '';
+    if (imagePath.isEmpty) {
+      imagePath = '/uploads/events/2025-05-13/2025-05/1747106713609_0.jpg';
+    }
+
+    final imageUrl = "https://beopn.mysesa.site/$imagePath";
 
     final date =
         event['start_date'] != null
@@ -166,120 +262,168 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ).format(DateTime.parse(event['start_date']))
             : '-';
 
-    return FutureBuilder<String?>(
-      future: SharedPreferences.getInstance().then(
-        (prefs) => prefs.getString('access_token'),
-      ),
-      builder: (context, snapshot) {
-        final token = snapshot.data;
-        return Container(
-          width: 220,
-          margin: const EdgeInsets.only(right: 12),
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(12)),
-          child: Stack(
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child:
-                    imageUrl != null && token != null
-                        ? CachedNetworkImage(
-                          imageUrl: imageUrl,
-                          httpHeaders: {
-                            'accept': 'application/json',
-                            'Authorization': 'Bearer $token',
-                          },
-                          height: 200,
-                          width: 220,
-                          fit: BoxFit.cover,
-                        )
-                        : Container(
-                          height: 200,
-                          width: 220,
-                          color: Colors.grey[300],
-                          child: const Icon(Icons.image_not_supported),
-                        ),
-              ),
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    color: Colors.black.withOpacity(0.4),
-                  ),
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        event['title'] ?? '-',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          const Icon(
-                            Icons.location_on,
-                            color: Colors.white,
-                            size: 16,
-                          ),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: Text(
-                              event['location'] ?? '',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Spacer(),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.calendar_today,
-                                color: Colors.white,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                date,
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                            ],
-                          ),
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.check_circle,
-                                color: Colors.green,
-                                size: 16,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                event['status'] ?? '',
-                                style: const TextStyle(color: Colors.white),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+    return GestureDetector(
+      onTap: () {
+        // Navigate to event detail
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder:
+                (context) => Scaffold(
+                  appBar: AppBar(title: Text(event['title'] ?? 'Event Detail')),
+                  body: const Center(child: Text('Event Detail Page')),
                 ),
-              ),
-            ],
           ),
         );
       },
+      child: Container(
+        width: 220,
+        margin: const EdgeInsets.only(right: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            // Image
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child:
+                  authToken != null
+                      ? Image(
+                        image: CachedNetworkImageProvider(
+                          imageUrl,
+                          headers: {
+                            'accept': 'application/json',
+                            'Authorization': 'Bearer $authToken',
+                          },
+                        ),
+                        height: 150,
+                        width: 220,
+                        fit: BoxFit.cover,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(
+                            height: 150,
+                            width: 220,
+                            color: Colors.grey[300],
+                            child: const Center(
+                              child: CircularProgressIndicator(),
+                            ),
+                          );
+                        },
+                        errorBuilder:
+                            (context, error, stackTrace) => Container(
+                              height: 150,
+                              width: 220,
+                              color: Colors.grey[300],
+                              child: const Icon(Icons.image_not_supported),
+                            ),
+                      )
+                      : Container(
+                        height: 150,
+                        width: 220,
+                        color: Colors.grey[300],
+                        child: const Icon(Icons.image_not_supported),
+                      ),
+            ),
+
+            // Gradient overlay (not causing blur anymore)
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+                  ),
+                ),
+              ),
+            ),
+
+            // Content
+            Positioned.fill(
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      event['title'] ?? '-',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.location_on,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            event['location'] ?? '',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const Spacer(),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.calendar_today,
+                              color: Colors.white,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              date,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.check_circle,
+                              color: Colors.green,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              event['status'] ?? '',
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -289,65 +433,161 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ? DateFormat('dd MMM yyyy').format(DateTime.parse(item['date']))
             : '-';
 
+    String photoUrl = item['photos']?[0]?['photo_url'] ?? '';
     final imageUrl =
-        item['photo_url'] != null
-            ? "https://beopn.mysesa.site/${item['photo_url']}"
-            : 'https://via.placeholder.com/150'; // fallback
+        photoUrl.isNotEmpty
+            ? "https://beopn.mysesa.site/$photoUrl"
+            : 'https://via.placeholder.com/150';
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
-      clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Stack(
-        children: [
-          CachedNetworkImage(
-            imageUrl: imageUrl,
-            height: 120,
-            width: double.infinity,
-            fit: BoxFit.cover,
+    return GestureDetector(
+      onTap: () {
+        // Navigate to news detail
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder:
+                (context) => Scaffold(
+                  appBar: AppBar(title: Text(item['title'] ?? 'News Detail')),
+                  body: const Center(child: Text('News Detail Page')),
+                ),
           ),
-          Container(
-            height: 120,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.black.withOpacity(0.7), Colors.transparent],
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
+        );
+      },
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 12),
+        elevation: 2,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Stack(
+          children: [
+            // Image
+            authToken != null && photoUrl.isNotEmpty
+                ? Image(
+                  image: CachedNetworkImageProvider(
+                    imageUrl,
+                    headers: {
+                      'accept': 'application/json',
+                      'Authorization': 'Bearer $authToken',
+                    },
+                  ),
+                  height: 120,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return Container(
+                      height: 120,
+                      color: Colors.grey[300],
+                      child: const Center(child: CircularProgressIndicator()),
+                    );
+                  },
+                  errorBuilder:
+                      (context, error, stackTrace) => Container(
+                        height: 120,
+                        color: Colors.grey[300],
+                        child: const Icon(Icons.image_not_supported),
+                      ),
+                )
+                : Container(
+                  height: 120,
+                  color: Colors.grey[300],
+                  child: const Icon(Icons.image_not_supported),
+                ),
+
+            // Gradient overlay
+            Container(
+              height: 120,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                ),
               ),
             ),
-          ),
-          ListTile(
-            contentPadding: const EdgeInsets.all(12),
-            title: Text(
-              item['title'],
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+
+            // Content
+            ListTile(
+              contentPadding: const EdgeInsets.all(12),
+              title: Text(
+                item['title'] ?? '',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              subtitle: Text(
+                date,
+                style: const TextStyle(color: Colors.white70),
               ),
             ),
-            subtitle: Text(date, style: const TextStyle(color: Colors.white70)),
-            onTap: () {
-              // TODO: navigate to detaill
-            },
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
 
+  Widget _buildNavIcons() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _buildNavIcon(Icons.event, 'Event', () {
+          // Navigate to events page
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder:
+                  (context) => Scaffold(
+                    appBar: AppBar(title: Text('Events')),
+                    body: const Center(child: Text('Events Page')),
+                  ),
+            ),
+          );
+        }),
+        _buildNavIcon(Icons.article, 'Berita', () {
+          // Navigate to news page
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder:
+                  (context) => Scaffold(
+                    appBar: AppBar(title: Text('Berita')),
+                    body: const Center(child: Text('Berita Page')),
+                  ),
+            ),
+          );
+        }),
+        _buildNavIcon(Icons.money, 'Keuangan', () {
+          // Navigate to finance page
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder:
+                  (context) => Scaffold(
+                    appBar: AppBar(title: Text('Keuangan')),
+                    body: const Center(child: Text('Keuangan Page')),
+                  ),
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
   Widget _buildNavIcon(IconData icon, String label, VoidCallback onTap) {
-    return GestureDetector(
+    return InkWell(
       onTap: onTap,
-      child: Column(
-        children: [
-          CircleAvatar(
-            backgroundColor: Colors.blue[100],
-            child: Icon(icon, color: Colors.blue[700]),
-          ),
-          const SizedBox(height: 5),
-          Text(label),
-        ],
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: 80,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        child: Column(
+          children: [
+            CircleAvatar(
+              radius: 25,
+              backgroundColor: Colors.blue[100],
+              child: Icon(icon, color: Colors.blue[700], size: 24),
+            ),
+            const SizedBox(height: 8),
+            Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+          ],
+        ),
       ),
     );
   }
