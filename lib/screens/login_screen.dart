@@ -95,7 +95,10 @@ class _LoginScreenState extends State<LoginScreen> {
               onPressed: _login,
               child: const Text(
                 'MASUK',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color.fromARGB(255, 255, 214, 250),
+                ),
               ),
             ),
             TextButton(
