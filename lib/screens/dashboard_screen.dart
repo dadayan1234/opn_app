@@ -328,7 +328,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             subtitle: Text(date, style: const TextStyle(color: Colors.white70)),
             onTap: () {
-              // TODO: navigate to detail
+              // TODO: navigate to detaill
             },
           ),
         ],
