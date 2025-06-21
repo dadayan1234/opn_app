@@ -15,18 +15,45 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen>
+    with TickerProviderStateMixin {
   Map<String, dynamic>? userInfo;
   List<dynamic> events = [];
   List<dynamic> news = [];
   String? authToken;
   bool isNotificationEnabled = false;
+  bool isLoading = true;
+
+  // API endpoint prefix
+  static const String apiPrefix = 'https://beopn.penaku.site/api/v1';
+
+  // Animation controllers for skeleton
+  late AnimationController _skeletonController;
+  late Animation<double> _skeletonAnimation;
 
   @override
   void initState() {
     super.initState();
+    _initializeAnimations();
     _getToken().then((_) => _fetchAll());
     _checkNotificationStatus();
+  }
+
+  @override
+  void dispose() {
+    _skeletonController.dispose();
+    super.dispose();
+  }
+
+  void _initializeAnimations() {
+    _skeletonController = AnimationController(
+      duration: const Duration(milliseconds: 1000),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _skeletonAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _skeletonController, curve: Curves.easeInOut),
+    );
   }
 
   Future<void> _checkNotificationStatus() async {
@@ -46,37 +73,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _fetchAll() async {
     if (authToken == null) return;
 
+    setState(() {
+      isLoading = true;
+    });
+
     final headers = {
       'accept': 'application/json',
       'Authorization': 'Bearer $authToken',
     };
 
-    final userRes = await http.get(
-      Uri.parse('https://beopn.penaku.site/api/v1/members/me'),
-      headers: headers,
-    );
+    try {
+      final userRes = await http.get(
+        Uri.parse('$apiPrefix/members/me'),
+        headers: headers,
+      );
 
-    final eventsRes = await http.get(
-      Uri.parse('https://beopn.penaku.site/api/v1/events/?page=1&limit=3'),
-      headers: headers,
-    );
+      final eventsRes = await http.get(
+        Uri.parse('$apiPrefix/events/?page=1&limit=3'),
+        headers: headers,
+      );
 
-    final newsRes = await http.get(
-      Uri.parse(
-        'https://beopn.penaku.site/api/v1/news/?skip=0&limit=10&is_published=true',
-      ),
-      headers: headers,
-    );
+      final newsRes = await http.get(
+        Uri.parse('$apiPrefix/news/?skip=0&limit=10&is_published=true'),
+        headers: headers,
+      );
 
-    if (userRes.statusCode == 200 &&
-        eventsRes.statusCode == 200 &&
-        newsRes.statusCode == 200) {
-      setState(() {
-        userInfo = json.decode(userRes.body);
-        events = json.decode(eventsRes.body)['data'];
-        news = json.decode(newsRes.body);
-      });
+      if (userRes.statusCode == 200 &&
+          eventsRes.statusCode == 200 &&
+          newsRes.statusCode == 200) {
+        setState(() {
+          userInfo = json.decode(userRes.body);
+          events = json.decode(eventsRes.body)['data'];
+          news = json.decode(newsRes.body);
+        });
+      }
+    } catch (e) {
+      print('Error fetching data: $e');
     }
+
+    setState(() {
+      isLoading = false;
+    });
+  }
+
+  Future<void> _onRefresh() async {
+    await _fetchAll();
   }
 
   // Function to request notification permission
@@ -143,99 +184,235 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             _buildCustomHeader(photoUrl),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (userInfo != null) _buildUserCard(fullName, photoUrl),
-                    const SizedBox(height: 10),
+              child: RefreshIndicator(
+                onRefresh: _onRefresh,
+                color: Colors.deepPurple,
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (isLoading)
+                        _buildSkeletonLoading()
+                      else ...[
+                        if (userInfo != null)
+                          _buildUserCard(fullName, photoUrl),
+                        const SizedBox(height: 10),
 
-                    // Notification permission card
-                    if (!isNotificationEnabled)
-                      Card(
-                        color: Colors.blue[50],
-                        margin: const EdgeInsets.symmetric(vertical: 10),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.notifications_active,
-                                color: Colors.blue[700],
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'Aktifkan Notifikasi',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 16,
-                                      ),
-                                    ),
-                                    const Text(
-                                      'Dapatkan pemberitahuan untuk event dan berita terbaru',
-                                      style: TextStyle(fontSize: 14),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              ElevatedButton(
-                                onPressed: _requestNotificationPermission,
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.blue[700],
-                                  foregroundColor: Colors.white,
-                                ),
-                                child: const Text('Aktifkan'),
-                              ),
-                            ],
+                        // Notification permission card
+                        if (!isNotificationEnabled) _buildNotificationCard(),
+
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Event Terbaru:',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                      ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          height: 150,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: events.length,
+                            itemBuilder: (context, index) {
+                              final event = events[index];
+                              return _buildEventCard(event);
+                            },
+                          ),
+                        ),
 
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Event Terbaru:',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    SizedBox(
-                      height: 150,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: events.length,
-                        itemBuilder: (context, index) {
-                          final event = events[index];
-                          return _buildEventCard(event);
-                        },
-                      ),
-                    ),
+                        const SizedBox(height: 20),
+                        _buildNavIcons(),
 
-                    const SizedBox(height: 20),
-                    _buildNavIcons(),
+                        const SizedBox(height: 20),
+                        const Text(
+                          'Berita Terbaru:',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Column(
+                          children:
+                              news.map((item) => _buildNewsCard(item)).toList(),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Berita Terbaru:',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+  Widget _buildSkeletonLoading() {
+    return AnimatedBuilder(
+      animation: _skeletonAnimation,
+      builder: (context, child) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // User card skeleton
+            Card(
+              child: ListTile(
+                leading: CircleAvatar(
+                  radius: 30,
+                  backgroundColor: _getSkeletonColor(),
+                ),
+                title: Container(
+                  height: 18,
+                  width: 150,
+                  decoration: BoxDecoration(
+                    color: _getSkeletonColor(),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                subtitle: Container(
+                  height: 14,
+                  width: 100,
+                  margin: const EdgeInsets.only(top: 8),
+                  decoration: BoxDecoration(
+                    color: _getSkeletonColor(),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Events section skeleton
+            Container(
+              height: 18,
+              width: 120,
+              decoration: BoxDecoration(
+                color: _getSkeletonColor(),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              height: 150,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: 3,
+                itemBuilder: (context, index) {
+                  return Container(
+                    width: 220,
+                    margin: const EdgeInsets.only(right: 12),
+                    decoration: BoxDecoration(
+                      color: _getSkeletonColor(),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    const SizedBox(height: 10),
-                    Column(
-                      children:
-                          news.map((item) => _buildNewsCard(item)).toList(),
+                  );
+                },
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Navigation icons skeleton
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: List.generate(
+                3,
+                (index) => Column(
+                  children: [
+                    CircleAvatar(
+                      radius: 25,
+                      backgroundColor: _getSkeletonColor(),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      height: 14,
+                      width: 50,
+                      decoration: BoxDecoration(
+                        color: _getSkeletonColor(),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
                     ),
                   ],
                 ),
               ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // News section skeleton
+            Container(
+              height: 18,
+              width: 120,
+              decoration: BoxDecoration(
+                color: _getSkeletonColor(),
+                borderRadius: BorderRadius.circular(4),
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            // News cards skeleton
+            ...List.generate(
+              3,
+              (index) => Container(
+                height: 120,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: _getSkeletonColor(),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Color _getSkeletonColor() {
+    return Color.lerp(
+      Colors.grey[300]!,
+      Colors.grey[100]!,
+      _skeletonAnimation.value,
+    )!;
+  }
+
+  Widget _buildNotificationCard() {
+    return Card(
+      color: Colors.deepPurple[50],
+      margin: const EdgeInsets.symmetric(vertical: 10),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Icon(Icons.notifications_active, color: Colors.deepPurple[700]),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Aktifkan Notifikasi',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                  const Text(
+                    'Dapatkan pemberitahuan untuk event dan berita terbaru',
+                    style: TextStyle(fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+            ElevatedButton(
+              onPressed: _requestNotificationPermission,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple[700],
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Aktifkan'),
             ),
           ],
         ),
@@ -248,7 +425,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       color: Colors.deepPurple,
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Logo on the left
           Container(
@@ -264,18 +440,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 height: 30,
                 width: 30,
               ),
-              // Text(
-              //   "SESA",
-              //   style: TextStyle(
-              //     fontWeight: FontWeight.bold,
-              //     color: Colors.deepPurple,
-              //   ),
-              // ),
             ),
           ),
 
+          const SizedBox(width: 12), // Jarak yang lebih dekat ke logo
+
           const Text(
-            "Dashboard",
+            "OPN Mobile", // Mengubah dari "Dashboard" ke "OPN Mobile"
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -283,6 +454,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
 
+          const Spacer(), // Menggunakan Spacer agar icons tetap di kanan
           // Profile and notification icons on the right
           Row(
             children: [
@@ -308,7 +480,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: CircleAvatar(
                     radius: 16,
                     backgroundImage: CachedNetworkImageProvider(
-                      "https://beopn.penaku.site/$photoUrl",
+                      "$apiPrefix/$photoUrl",
                       headers: {
                         'accept': 'application/json',
                         'Authorization': 'Bearer $authToken',
@@ -346,7 +518,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           backgroundImage:
               (photoUrl != null && authToken != null)
                   ? CachedNetworkImageProvider(
-                    "https://beopn.penaku.site/$photoUrl",
+                    "$apiPrefix/$photoUrl",
                     headers: {
                       'accept': 'application/json',
                       'Authorization': 'Bearer $authToken',
@@ -367,7 +539,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       imagePath = '/uploads/events/2025-05-13/2025-05/1747106713609_0.jpg';
     }
 
-    final imageUrl = "https://beopn.penaku.site/$imagePath";
+    final imageUrl = "$apiPrefix/$imagePath";
 
     final date =
         event['start_date'] != null
@@ -550,7 +722,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     String photoUrl = item['photos']?[0]?['photo_url'] ?? '';
     final imageUrl =
         photoUrl.isNotEmpty
-            ? "https://beopn.penaku.site/$photoUrl"
+            ? "$apiPrefix/$photoUrl"
             : 'https://via.placeholder.com/150';
 
     return GestureDetector(
