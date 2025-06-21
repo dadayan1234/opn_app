@@ -543,9 +543,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     final imageUrl = "$apiImagePrefix/$imagePath";
     final date =
         event['date'] != null
-            ? DateFormat(
-              'EEEE, dd MMMM yyyy',
-            ).format(DateTime.parse(event['date']))
+            ? DateFormat('EEEE, dd MMMM').format(DateTime.parse(event['date']))
             : '-';
 
     return GestureDetector(
@@ -562,14 +560,14 @@ class _DashboardScreenState extends State<DashboardScreen>
         );
       },
       child: Container(
-        width: 220,
+        width: 280,
         margin: const EdgeInsets.only(right: 12),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
-              blurRadius: 8,
+              blurRadius: 20,
               offset: const Offset(0, 2),
             ),
           ],
