@@ -305,7 +305,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                 itemCount: 3,
                 itemBuilder: (context, index) {
                   return Container(
-                    width: 220,
+                    width: 280,
                     margin: const EdgeInsets.only(right: 12),
                     decoration: BoxDecoration(
                       color: _getSkeletonColor(),
@@ -588,13 +588,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                           },
                         ),
                         height: 150,
-                        width: 220,
+                        width: 280,
                         fit: BoxFit.cover,
                         loadingBuilder: (context, child, loadingProgress) {
                           if (loadingProgress == null) return child;
                           return Container(
                             height: 150,
-                            width: 220,
+                            width: 280,
                             color: Colors.grey[300],
                             child: const Center(
                               child: CircularProgressIndicator(),
@@ -604,14 +604,14 @@ class _DashboardScreenState extends State<DashboardScreen>
                         errorBuilder:
                             (context, error, stackTrace) => Container(
                               height: 150,
-                              width: 220,
+                              width: 280,
                               color: Colors.grey[300],
                               child: const Icon(Icons.image_not_supported),
                             ),
                       )
                       : Container(
                         height: 150,
-                        width: 220,
+                        width: 280,
                         color: Colors.grey[300],
                         child: const Icon(Icons.image_not_supported),
                       ),
