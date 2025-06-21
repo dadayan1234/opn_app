@@ -27,7 +27,7 @@ class _SplashScreenState extends State<SplashScreen> {
     }
 
     final response = await http.get(
-      Uri.parse('https://beopn.mysesa.site/api/v1/members/me'),
+      Uri.parse('https://beopn.penaku.site/api/v1/members/me'),
       headers: {'accept': 'application/json', 'Authorization': 'Bearer $token'},
     );
 

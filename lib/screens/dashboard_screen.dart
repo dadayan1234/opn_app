@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
+import '../services/firebase_service.dart'; // Import Firebase service
 
 class DashboardScreen extends StatefulWidget {
   final String fullName;
@@ -19,11 +20,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<dynamic> events = [];
   List<dynamic> news = [];
   String? authToken;
+  bool isNotificationEnabled = false;
 
   @override
   void initState() {
     super.initState();
     _getToken().then((_) => _fetchAll());
+    _checkNotificationStatus();
+  }
+
+  Future<void> _checkNotificationStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      isNotificationEnabled = prefs.getBool('fcm_token_sent') ?? false;
+    });
   }
 
   Future<void> _getToken() async {
@@ -42,18 +52,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     };
 
     final userRes = await http.get(
-      Uri.parse('https://beopn.mysesa.site/api/v1/members/me'),
+      Uri.parse('https://beopn.penaku.site/api/v1/members/me'),
       headers: headers,
     );
 
     final eventsRes = await http.get(
-      Uri.parse('https://beopn.mysesa.site/api/v1/events/?page=1&limit=3'),
+      Uri.parse('https://beopn.penaku.site/api/v1/events/?page=1&limit=3'),
       headers: headers,
     );
 
     final newsRes = await http.get(
       Uri.parse(
-        'https://beopn.mysesa.site/api/v1/news/?skip=0&limit=10&is_published=true',
+        'https://beopn.penaku.site/api/v1/news/?skip=0&limit=10&is_published=true',
       ),
       headers: headers,
     );
@@ -66,6 +76,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
         events = json.decode(eventsRes.body)['data'];
         news = json.decode(newsRes.body);
       });
+    }
+  }
+
+  // Function to request notification permission
+  Future<void> _requestNotificationPermission() async {
+    bool permissionGranted = await FirebaseService.requestPermission();
+
+    if (permissionGranted) {
+      // Get FCM token
+      final token = await FirebaseService.getToken();
+      if (token != null) {
+        // Send the token to your server
+        final success = await FirebaseService.sendTokenToServer(token);
+        if (success) {
+          setState(() {
+            isNotificationEnabled = true;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Notifikasi telah diaktifkan'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Gagal mengaktifkan notifikasi'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Izin notifikasi ditolak'),
+          backgroundColor: Colors.orange,
+        ),
+      );
     }
   }
 
@@ -100,8 +149,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (userInfo != null) _buildUserCard(fullName, photoUrl),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 10),
 
+                    // Notification permission card
+                    if (!isNotificationEnabled)
+                      Card(
+                        color: Colors.blue[50],
+                        margin: const EdgeInsets.symmetric(vertical: 10),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.notifications_active,
+                                color: Colors.blue[700],
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text(
+                                      'Aktifkan Notifikasi',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    const Text(
+                                      'Dapatkan pemberitahuan untuk event dan berita terbaru',
+                                      style: TextStyle(fontSize: 14),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              ElevatedButton(
+                                onPressed: _requestNotificationPermission,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.blue[700],
+                                  foregroundColor: Colors.white,
+                                ),
+                                child: const Text('Aktifkan'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                    const SizedBox(height: 20),
                     const Text(
                       'Event Terbaru:',
                       style: TextStyle(
@@ -157,20 +252,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
         children: [
           // Logo on the left
           Container(
-            height: 40,
-            width: 40,
+            height: 30,
+            width: 30,
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(2),
             ),
-            child: const Center(
-              child: Text(
-                "SESA",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.deepPurple,
-                ),
+            child: Center(
+              child: Image.asset(
+                'assets/images/logo_opn.png',
+                height: 30,
+                width: 30,
               ),
+              // Text(
+              //   "SESA",
+              //   style: TextStyle(
+              //     fontWeight: FontWeight.bold,
+              //     color: Colors.deepPurple,
+              //   ),
+              // ),
             ),
           ),
 
@@ -183,9 +283,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
 
-          // Profile and logout icons on the right
+          // Profile and notification icons on the right
           Row(
             children: [
+              // Notification icon
+              IconButton(
+                icon: const Icon(Icons.notifications, color: Colors.white),
+                onPressed: () {
+                  if (!isNotificationEnabled) {
+                    _requestNotificationPermission();
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Notifikasi sudah aktif')),
+                    );
+                  }
+                },
+              ),
+
               if (photoUrl != null && authToken != null)
                 GestureDetector(
                   onTap: () {
@@ -194,7 +308,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: CircleAvatar(
                     radius: 16,
                     backgroundImage: CachedNetworkImageProvider(
-                      "https://beopn.mysesa.site/$photoUrl",
+                      "https://beopn.penaku.site/$photoUrl",
                       headers: {
                         'accept': 'application/json',
                         'Authorization': 'Bearer $authToken',
@@ -232,7 +346,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           backgroundImage:
               (photoUrl != null && authToken != null)
                   ? CachedNetworkImageProvider(
-                    "https://beopn.mysesa.site/$photoUrl",
+                    "https://beopn.penaku.site/$photoUrl",
                     headers: {
                       'accept': 'application/json',
                       'Authorization': 'Bearer $authToken',
@@ -253,7 +367,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       imagePath = '/uploads/events/2025-05-13/2025-05/1747106713609_0.jpg';
     }
 
-    final imageUrl = "https://beopn.mysesa.site/$imagePath";
+    final imageUrl = "https://beopn.penaku.site/$imagePath";
 
     final date =
         event['start_date'] != null
@@ -436,7 +550,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     String photoUrl = item['photos']?[0]?['photo_url'] ?? '';
     final imageUrl =
         photoUrl.isNotEmpty
-            ? "https://beopn.mysesa.site/$photoUrl"
+            ? "https://beopn.penaku.site/$photoUrl"
             : 'https://via.placeholder.com/150';
 
     return GestureDetector(

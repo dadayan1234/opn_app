@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
-  static const String baseUrl = 'https://beopn.mysesa.site';
+  static const String baseUrl = 'https://beopn.penaku.site';
 
   static Future<bool> login(String username, String password) async {
     final response = await http.post(

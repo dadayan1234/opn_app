@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "613446991638",
+    "project_id": "opn-2da62",
+    "storage_bucket": "opn-2da62.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:613446991638:android:b9ce4b71afcc9938875a37",
+        "android_client_info": {
+          "package_name": "com.example.opn_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBaqThvP_878KnSji-e_kFLpOj2qKupRUM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

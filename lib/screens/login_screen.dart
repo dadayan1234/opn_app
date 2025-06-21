@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/firebase_service.dart'; // Import the Firebase service
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -83,8 +84,17 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _requestNotificationPermission() async {
-    // We'll implement this in the FCM section
-    // This is a placeholder for now
+    // Request permission for notifications
+    bool permissionGranted = await FirebaseService.requestPermission();
+
+    if (permissionGranted) {
+      // Get FCM token
+      final token = await FirebaseService.getToken();
+      if (token != null) {
+        // Send the token to your server
+        await FirebaseService.sendTokenToServer(token);
+      }
+    }
   }
 
   @override
