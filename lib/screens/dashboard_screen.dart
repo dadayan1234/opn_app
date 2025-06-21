@@ -541,12 +541,13 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
 
     final imageUrl = "$apiImagePrefix/$imagePath";
-
+    Intl.defaultLocale = 'id_ID';
     final date =
-        event['start_date'] != null
+        event['date'] != null
             ? DateFormat(
-              'dd MMM yyyy',
-            ).format(DateTime.parse(event['start_date']))
+              'EEEE, dd MMMM yyyy',
+              'id_ID',
+            ).format(DateTime.parse(event['date']))
             : '-';
 
     return GestureDetector(
