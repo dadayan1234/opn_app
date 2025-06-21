@@ -541,12 +541,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
 
     final imageUrl = "$apiImagePrefix/$imagePath";
-    Intl.defaultLocale = 'id_ID';
     final date =
         event['date'] != null
             ? DateFormat(
               'EEEE, dd MMMM yyyy',
-              'id_ID',
             ).format(DateTime.parse(event['date']))
             : '-';
 
