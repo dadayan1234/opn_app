@@ -26,6 +26,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   // API endpoint prefix
   static const String apiPrefix = 'https://beopn.penaku.site/api/v1';
+  static const String apiImagePrefix = 'https://beopn.penaku.site';
 
   // Animation controllers for skeleton
   late AnimationController _skeletonController;
@@ -480,7 +481,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   child: CircleAvatar(
                     radius: 16,
                     backgroundImage: CachedNetworkImageProvider(
-                      "$apiPrefix/$photoUrl",
+                      "$apiImagePrefix/$photoUrl",
                       headers: {
                         'accept': 'application/json',
                         'Authorization': 'Bearer $authToken',
@@ -518,7 +519,7 @@ class _DashboardScreenState extends State<DashboardScreen>
           backgroundImage:
               (photoUrl != null && authToken != null)
                   ? CachedNetworkImageProvider(
-                    "$apiPrefix/$photoUrl",
+                    "$apiImagePrefix/$photoUrl",
                     headers: {
                       'accept': 'application/json',
                       'Authorization': 'Bearer $authToken',
@@ -539,7 +540,7 @@ class _DashboardScreenState extends State<DashboardScreen>
       imagePath = '/uploads/events/2025-05-13/2025-05/1747106713609_0.jpg';
     }
 
-    final imageUrl = "$apiPrefix/$imagePath";
+    final imageUrl = "$apiImagePrefix/$imagePath";
 
     final date =
         event['start_date'] != null
@@ -722,7 +723,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     String photoUrl = item['photos']?[0]?['photo_url'] ?? '';
     final imageUrl =
         photoUrl.isNotEmpty
-            ? "$apiPrefix/$photoUrl"
+            ? "$apiImagePrefix/$photoUrl"
             : 'https://via.placeholder.com/150';
 
     return GestureDetector(
