@@ -43,6 +43,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   @override
   void dispose() {
     _skeletonController.dispose();
+    _closeDropdown(); // Tutup dropdown saat dispose
     super.dispose();
   }
 
@@ -421,6 +422,123 @@ class _DashboardScreenState extends State<DashboardScreen>
     );
   }
 
+  // Tambahkan state variable untuk dropdown
+  bool _isDropdownOpen = false;
+  OverlayEntry? _overlayEntry;
+  final GlobalKey _avatarKey = GlobalKey();
+
+  // Method untuk membuat overlay dropdown
+  OverlayEntry _createOverlayEntry() {
+    RenderBox renderBox =
+        _avatarKey.currentContext!.findRenderObject() as RenderBox;
+    var size = renderBox.size;
+    var offset = renderBox.localToGlobal(Offset.zero);
+
+    return OverlayEntry(
+      builder:
+          (context) => Positioned(
+            left: offset.dx - 120, // Adjust position
+            top: offset.dy + size.height + 5,
+            width: 150,
+            child: Material(
+              elevation: 8.0,
+              borderRadius: BorderRadius.circular(8.0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8.0),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.person, size: 20),
+                      title: const Text(
+                        'Profil',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                      onTap: () {
+                        _closeDropdown();
+                        Navigator.of(context).pushNamed('/profile');
+                      },
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      dense: true,
+                      leading: const Icon(Icons.notifications, size: 20),
+                      title: const Text(
+                        'Notifikasi',
+                        style: TextStyle(fontSize: 14),
+                      ),
+                      onTap: () {
+                        _closeDropdown();
+                        if (!isNotificationEnabled) {
+                          _requestNotificationPermission();
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Notifikasi sudah aktif'),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      dense: true,
+                      leading: const Icon(
+                        Icons.logout,
+                        size: 20,
+                        color: Colors.red,
+                      ),
+                      title: const Text(
+                        'Logout',
+                        style: TextStyle(fontSize: 14, color: Colors.red),
+                      ),
+                      onTap: () {
+                        _closeDropdown();
+                        _logout();
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+    );
+  }
+
+  // Method untuk membuka dropdown
+  void _openDropdown() {
+    if (_overlayEntry == null) {
+      _overlayEntry = _createOverlayEntry();
+      Overlay.of(context).insert(_overlayEntry!);
+      setState(() {
+        _isDropdownOpen = true;
+      });
+    }
+  }
+
+  // Method untuk menutup dropdown
+  void _closeDropdown() {
+    if (_overlayEntry != null) {
+      _overlayEntry!.remove();
+      _overlayEntry = null;
+      setState(() {
+        _isDropdownOpen = false;
+      });
+    }
+  }
+
+  // Update _buildCustomHeader method
   Widget _buildCustomHeader(String? photoUrl) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -444,10 +562,10 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
           ),
 
-          const SizedBox(width: 12), // Jarak yang lebih dekat ke logo
+          const SizedBox(width: 12),
 
           const Text(
-            "OPN Mobile", // Mengubah dari "Dashboard" ke "OPN Mobile"
+            "OPN Mobile",
             style: TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
@@ -455,57 +573,32 @@ class _DashboardScreenState extends State<DashboardScreen>
             ),
           ),
 
-          const Spacer(), // Menggunakan Spacer agar icons tetap di kanan
-          // Profile and notification icons on the right
-          Row(
-            children: [
-              // Notification icon
-              IconButton(
-                icon: const Icon(Icons.notifications, color: Colors.white),
-                onPressed: () {
-                  if (!isNotificationEnabled) {
-                    _requestNotificationPermission();
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Notifikasi sudah aktif')),
-                    );
-                  }
-                },
-              ),
+          const Spacer(),
 
-              if (photoUrl != null && authToken != null)
-                GestureDetector(
-                  onTap: () {
-                    // Navigate to profile page
-                  },
-                  child: CircleAvatar(
-                    radius: 16,
-                    backgroundImage: CachedNetworkImageProvider(
-                      "$apiImagePrefix/$photoUrl",
-                      headers: {
-                        'accept': 'application/json',
-                        'Authorization': 'Bearer $authToken',
-                      },
-                    ),
-                  ),
-                )
-              else
-                GestureDetector(
-                  onTap: () {
-                    // Navigate to profile page
-                  },
-                  child: const CircleAvatar(
-                    radius: 16,
-                    child: Icon(Icons.person, size: 18),
-                  ),
+          // Profile avatar with dropdown
+          GestureDetector(
+            key: _avatarKey,
+            onTap: () {
+              if (_isDropdownOpen) {
+                _closeDropdown();
+              } else {
+                _openDropdown();
+              }
+            },
+            child: Container(
+              padding: const EdgeInsets.all(8),
+              child: CircleAvatar(
+                radius: 16,
+                backgroundColor: Colors.white,
+                child: Icon(
+                  Icons.person,
+                  size: 18,
+                  color: Colors.deepPurple[700],
                 ),
-              const SizedBox(width: 12),
-              GestureDetector(
-                onTap: _logout,
-                child: const Icon(Icons.logout, color: Colors.white),
               ),
-            ],
+            ),
           ),
+          const SizedBox(width: 12),
         ],
       ),
     );
