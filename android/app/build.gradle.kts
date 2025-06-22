@@ -9,17 +9,21 @@ plugins {
 
 android {
     namespace = "com.example.opn_app"
-    compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"
+    compileSdk = 35
+
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        //sourceCompatibility = JavaVersion.VERSION_1_8
+        // targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
         isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_1_8.toString()
+        // jvmTarget = JavaVersion.VERSION_1_8.toString()
+        jvmTarget = "11"
     }
 
     defaultConfig {
@@ -28,7 +32,7 @@ android {
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = 21 // Minimal 21 untuk Firebase Messaging
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         multiDexEnabled = true // Tambahkan ini untuk aplikasi dengan banyak dependensi
@@ -46,6 +50,7 @@ android {
 dependencies {
     // Tambahkan multidex untuk mendukung aplikasi dengan banyak dependensi
     implementation("androidx.multidex:multidex:2.0.1")
+    implementation ("com.google.android.material:material:1.5.0")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.0.4")
 }
 
