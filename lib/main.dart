@@ -7,6 +7,7 @@ import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/biodata_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/events_screen.dart';
 
 // Handler untuk pesan yang diterima saat aplikasi berada di background
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -124,6 +125,7 @@ class _MyAppState extends State<MyApp> {
               ModalRoute.of(context)?.settings.arguments as String? ?? '';
           return DashboardScreen(fullName: fullName);
         },
+        '/events': (context) => const EventsScreen(),
       },
     );
   }

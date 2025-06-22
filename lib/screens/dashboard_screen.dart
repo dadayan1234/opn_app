@@ -816,15 +816,16 @@ class _DashboardScreenState extends State<DashboardScreen>
       children: [
         _buildNavIcon(Icons.event, 'Event', () {
           // Navigate to events page
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder:
-                  (context) => Scaffold(
-                    appBar: AppBar(title: Text('Events')),
-                    body: const Center(child: Text('Events Page')),
-                  ),
-            ),
-          );
+          Navigator.of(context).pushNamed('/events');
+          // .push(
+          //   MaterialPageRoute(
+          //     builder:
+          //         (context) => Scaffold(
+          //           appBar: AppBar(title: Text('Events')),
+          //           body: const Center(child: Text('Events Page')),
+          //         ),
+          //   ),
+          // );
         }),
         _buildNavIcon(Icons.article, 'Berita', () {
           // Navigate to news page
