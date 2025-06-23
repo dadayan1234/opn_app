@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import '../services/firebase_service.dart'; // Import Firebase service
+import 'news_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String fullName;
@@ -922,27 +923,11 @@ class _DashboardScreenState extends State<DashboardScreen>
         }),
         _buildNavIcon(Icons.article, 'Berita', () {
           // Navigate to news page
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder:
-                  (context) => Scaffold(
-                    appBar: AppBar(title: Text('Berita')),
-                    body: const Center(child: Text('Berita Page')),
-                  ),
-            ),
-          );
+          Navigator.of(context).pushNamed('/news');
         }),
         _buildNavIcon(Icons.money, 'Keuangan', () {
           // Navigate to finance page
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder:
-                  (context) => Scaffold(
-                    appBar: AppBar(title: Text('Keuangan')),
-                    body: const Center(child: Text('Keuangan Page')),
-                  ),
-            ),
-          );
+          Navigator.of(context).pushNamed('/finance');
         }),
       ],
     );

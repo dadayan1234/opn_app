@@ -9,6 +9,8 @@ import 'screens/biodata_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/events_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/news_screen.dart';
+import 'screens/finance_screen.dart';
 
 // Handler untuk pesan yang diterima saat aplikasi berada di background
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -128,6 +130,8 @@ class _MyAppState extends State<MyApp> {
         },
         '/events': (context) => const EventsScreen(),
         '/profile': (context) => const ProfileScreen(),
+        '/news': (context) => const NewsScreen(),
+        '/finance': (context) => const FinanceScreen(),
       },
     );
   }
