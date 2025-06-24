@@ -225,6 +225,7 @@ class _EventsScreenState extends State<EventsScreen> {
         event['date'] != null
             ? DateFormat(
               'EEEE, dd MMMM yyyy',
+              'id_ID',
             ).format(DateTime.parse(event['date']))
             : '-';
     final time =

@@ -11,6 +11,8 @@ import 'screens/events_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/news_screen.dart';
 import 'screens/finance_screen.dart';
+import 'services/navigation_service.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 // Handler untuk pesan yang diterima saat aplikasi berada di background
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -34,6 +36,9 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 void main() async {
   WidgetsFlutterBinding.ensureInitialized(); // Memastikan widget diinisialisasi terlebih dahulu
 
+  // 3. Muat data lokalisasi untuk Bahasa Indonesia.
+  // Aplikasi akan menunggu sampai proses ini selesai sebelum lanjut.
+  await initializeDateFormatting('id_ID', null);
   // Inisialisasi Firebase
   await Firebase.initializeApp();
 
@@ -115,6 +120,7 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'OPN Mobile',
+      navigatorKey: NavigationService.navigatorKey,
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.deepPurple),
       initialRoute: '/',

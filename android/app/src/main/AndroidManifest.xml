@@ -77,4 +77,27 @@
             <data android:mimeType="text/plain"/>
         </intent>
     </queries>
+    <queries>
+    <intent>
+        <action android:name="android.intent.action.VIEW" />
+        <data android:scheme="https" />
+    </intent>
+    <intent>
+        <action android:name="android.intent.action.VIEW" />
+        <data android:scheme="http" />
+    </intent>
+
+    <package android:name="com.google.android.youtube" />
+    <package android:name="com.google.android.apps.docs" /> <package android:name="com.whatsapp" />
+
+    <intent>
+        <action android:name="android.intent.action.VIEW" />
+        <data android:scheme="geo" /> </intent>
+    <intent>
+        <action android:name="android.intent.action.SENDTO" />
+        <data android:scheme="mailto" /> </intent>
+    <intent>
+        <action android:name="android.intent.action.VIEW" />
+        <data android:mimeType="application/pdf" /> </intent>
+</queries>
 </manifest>

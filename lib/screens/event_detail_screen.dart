@@ -5,6 +5,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'package:dio/dio.dart';
+import 'dart:typed_data';
+// --- PERUBAHAN: Import package baru ---
+import 'package:flutter_html/flutter_html.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final dynamic event;
@@ -150,8 +157,8 @@ class _EventDetailScreenState extends State<EventDetailScreen>
         await launchUrl(uri, mode: LaunchMode.externalApplication);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Tidak dapat membuka link'),
+          SnackBar(
+            content: Text('Tidak dapat membuka link: $url'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -167,40 +174,58 @@ class _EventDetailScreenState extends State<EventDetailScreen>
     }
   }
 
-  String _formatHtmlContent(String htmlContent) {
-    // Simple HTML tag removal and formatting
-    String formatted =
-        htmlContent
-            .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
-            .replaceAll(RegExp(r'<p>', caseSensitive: false), '\n')
-            .replaceAll(RegExp(r'</p>', caseSensitive: false), '\n')
-            .replaceAll(
-              RegExp(r'<strong>(.*?)</strong>', caseSensitive: false),
-              '**\$1**',
-            )
-            .replaceAll(
-              RegExp(r'<b>(.*?)</b>', caseSensitive: false),
-              '**\$1**',
-            )
-            .replaceAll(
-              RegExp(r'<em>(.*?)</em>', caseSensitive: false),
-              '*\$1*',
-            )
-            .replaceAll(RegExp(r'<i>(.*?)</i>', caseSensitive: false), '*\$1*')
-            .replaceAll(RegExp(r'<ul>', caseSensitive: false), '')
-            .replaceAll(RegExp(r'</ul>', caseSensitive: false), '')
-            .replaceAll(RegExp(r'<ol>', caseSensitive: false), '')
-            .replaceAll(RegExp(r'</ol>', caseSensitive: false), '')
-            .replaceAll(
-              RegExp(r'<li>(.*?)</li>', caseSensitive: false),
-              '• \$1\n',
-            )
-            .replaceAll(RegExp(r'<[^>]+>'), '') // Remove remaining HTML tags
-            .replaceAll(RegExp(r'\n+'), '\n') // Remove multiple newlines
-            .trim();
+  // --- PERUBAHAN: Fungsi baru untuk mengunduh gambar ---
+  Future<void> _downloadImage(String imageUrl) async {
+    if (!mounted) return;
 
-    return formatted;
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    scaffoldMessenger.showSnackBar(
+      const SnackBar(
+        content: Text('Mempersiapkan file...'),
+        backgroundColor: Colors.blue,
+      ),
+    );
+
+    try {
+      // 1. Download data gambar sebagai byte
+      final dio = Dio();
+      final response = await dio.get(
+        imageUrl,
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: {'Authorization': 'Bearer $authToken'},
+        ),
+      );
+      final Uint8List imageBytes = response.data;
+
+      // 2. Dapatkan direktori sementara di aplikasi
+      final tempDir = await getTemporaryDirectory();
+
+      // 3. Buat file di direktori sementara tersebut
+      final String fileName =
+          "event_doc_${DateTime.now().millisecondsSinceEpoch}.jpg";
+      final File tempFile = File('${tempDir.path}/$fileName');
+      await tempFile.writeAsBytes(imageBytes);
+
+      if (!mounted) return;
+
+      // 4. Bagikan file yang sudah dibuat menggunakan share_plus
+      final xfile = XFile(tempFile.path);
+      await Share.shareXFiles([xfile], text: 'Dokumen Event');
+    } catch (e) {
+      print("ERROR saat proses download atau share: $e");
+      if (!mounted) return;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text('Terjadi kesalahan: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
+
+  // --- PERUBAHAN: Fungsi _formatHtmlContent dihapus karena tidak digunakan lagi ---
 
   @override
   Widget build(BuildContext context) {
@@ -220,6 +245,7 @@ class _EventDetailScreenState extends State<EventDetailScreen>
         event['date'] != null
             ? DateFormat(
               'EEEE, dd MMMM yyyy',
+              'id_ID',
             ).format(DateTime.parse(event['date']))
             : '-';
     final time =
@@ -229,7 +255,6 @@ class _EventDetailScreenState extends State<EventDetailScreen>
             ).format(DateFormat('HH:mm:ss').parse(event['time']))
             : '-';
 
-    // Status color
     Color statusColor;
     switch (event['status']?.toLowerCase()) {
       case 'akan datang':
@@ -257,7 +282,6 @@ class _EventDetailScreenState extends State<EventDetailScreen>
                 background: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // Image
                     authToken != null
                         ? Image(
                           image: CachedNetworkImageProvider(
@@ -295,8 +319,6 @@ class _EventDetailScreenState extends State<EventDetailScreen>
                             color: Colors.grey,
                           ),
                         ),
-
-                    // Gradient overlay
                     Container(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -309,8 +331,6 @@ class _EventDetailScreenState extends State<EventDetailScreen>
                         ),
                       ),
                     ),
-
-                    // Status Badge
                     Positioned(
                       bottom: 20,
                       right: 20,
@@ -367,7 +387,6 @@ class _EventDetailScreenState extends State<EventDetailScreen>
                 ],
               ),
             ),
-            // Feedback section at the bottom
             _buildFeedbackSection(),
           ],
         ),
@@ -381,29 +400,23 @@ class _EventDetailScreenState extends State<EventDetailScreen>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Title
           Text(
             event['title'] ?? '',
             style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 20),
-
-          // Event Info Cards
           _buildInfoCard(
             icon: Icons.calendar_today,
             title: 'Tanggal & Waktu',
             content: '$date\n$time WIB',
           ),
           const SizedBox(height: 12),
-
           _buildInfoCard(
             icon: Icons.location_on,
             title: 'Lokasi',
             content: event['location'] ?? 'Lokasi belum ditentukan',
           ),
           const SizedBox(height: 20),
-
-          // Description
           if (event['description'] != null &&
               event['description'].isNotEmpty) ...[
             const Text(
@@ -426,24 +439,25 @@ class _EventDetailScreenState extends State<EventDetailScreen>
             ),
             const SizedBox(height: 20),
           ],
-
-          // Event Details
           const Text(
             'Detail Event',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
-
           _buildDetailRow('ID Event', event['id']?.toString() ?? '-'),
+          // --- PERUBAHAN: Logika untuk menampilkan 'Admin' ---
           _buildDetailRow(
             'Dibuat oleh',
-            'User ID: ${event['created_by']?.toString() ?? '-'}',
+            (event['created_by']?.toString() == '1')
+                ? 'Admin'
+                : 'User ID: ${event['created_by']?.toString() ?? '-'}',
           ),
           _buildDetailRow(
             'Dibuat pada',
             event['created_at'] != null
                 ? DateFormat(
                   'dd MMMM yyyy, HH:mm',
+                  'id_ID',
                 ).format(DateTime.parse(event['created_at']))
                 : '-',
           ),
@@ -452,6 +466,7 @@ class _EventDetailScreenState extends State<EventDetailScreen>
             event['updated_at'] != null
                 ? DateFormat(
                   'dd MMMM yyyy, HH:mm',
+                  'id_ID',
                 ).format(DateTime.parse(event['updated_at']))
                 : '-',
           ),
@@ -490,6 +505,7 @@ class _EventDetailScreenState extends State<EventDetailScreen>
             minute['date'] != null
                 ? DateFormat(
                   'dd MMMM yyyy',
+                  'id_ID',
                 ).format(DateTime.parse(minute['date']))
                 : '-';
 
@@ -526,22 +542,32 @@ class _EventDetailScreenState extends State<EventDetailScreen>
                     minute['description'].isNotEmpty)
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
                     decoration: BoxDecoration(
                       color: Colors.grey[50],
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: Colors.grey[200]!),
                     ),
-                    child: Text(
-                      _formatHtmlContent(minute['description']),
-                      style: const TextStyle(fontSize: 14, height: 1.4),
+                    // --- PERUBAHAN: Merender HTML ---
+                    child: Html(
+                      data: minute['description'],
+                      style: {
+                        "body": Style(
+                          fontSize: FontSize(14.0),
+                          lineHeight: LineHeight.number(1.4),
+                        ),
+                      },
                     ),
                   ),
                 const SizedBox(height: 12),
                 if (minute['document_url'] != null &&
                     minute['document_url'].isNotEmpty)
                   ElevatedButton.icon(
-                    onPressed: () => _launchUrl(minute['document_url']),
+                    // --- PERUBAHAN: Memperbaiki URL ---
+                    onPressed: () {
+                      final fullUrl = "${minute['document_url']}";
+                      _launchUrl(fullUrl);
+                    },
                     icon: const Icon(Icons.open_in_new, size: 18),
                     label: const Text('Buka Dokumen'),
                     style: ElevatedButton.styleFrom(
@@ -595,60 +621,89 @@ class _EventDetailScreenState extends State<EventDetailScreen>
 
         return GestureDetector(
           onTap: () => _showPhotoDialog(photoUrl),
-          child: Container(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 6,
-                  offset: const Offset(0, 2),
+          // --- PERUBAHAN: Menambahkan Stack untuk tombol download ---
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child:
-                  authToken != null
-                      ? CachedNetworkImage(
-                        imageUrl: photoUrl,
-                        httpHeaders: {
-                          'accept': 'application/json',
-                          'Authorization': 'Bearer $authToken',
-                        },
-                        fit: BoxFit.cover,
-                        placeholder:
-                            (context, url) => Container(
-                              color: Colors.grey[300],
-                              child: const Center(
-                                child: CircularProgressIndicator(),
-                              ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child:
+                      authToken != null
+                          ? CachedNetworkImage(
+                            imageUrl: photoUrl,
+                            httpHeaders: {
+                              'accept': 'application/json',
+                              'Authorization': 'Bearer $authToken',
+                            },
+                            fit: BoxFit.cover,
+                            placeholder:
+                                (context, url) => Container(
+                                  color: Colors.grey[300],
+                                  child: const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                ),
+                            errorWidget:
+                                (context, url, error) => Container(
+                                  color: Colors.grey[300],
+                                  child: const Icon(
+                                    Icons.broken_image,
+                                    size: 40,
+                                    color: Colors.grey,
+                                  ),
+                                ),
+                          )
+                          : Container(
+                            color: Colors.grey[300],
+                            child: const Icon(
+                              Icons.broken_image,
+                              size: 40,
+                              color: Colors.grey,
                             ),
-                        errorWidget:
-                            (context, url, error) => Container(
-                              color: Colors.grey[300],
-                              child: const Icon(
-                                Icons.broken_image,
-                                size: 40,
-                                color: Colors.grey,
-                              ),
-                            ),
-                      )
-                      : Container(
-                        color: Colors.grey[300],
-                        child: const Icon(
-                          Icons.broken_image,
-                          size: 40,
-                          color: Colors.grey,
-                        ),
+                          ),
+                ),
+              ),
+              // --- PERUBAHAN: Tombol Download ---
+              Positioned(
+                bottom: 8,
+                right: 8,
+                child: Material(
+                  color: Colors.black.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(20),
+                  child: InkWell(
+                    onTap: () => _downloadImage(photoUrl),
+                    borderRadius: BorderRadius.circular(20),
+                    child: const Padding(
+                      padding: EdgeInsets.all(6.0),
+                      child: Icon(
+                        Icons.download,
+                        color: Colors.white,
+                        size: 20,
                       ),
-            ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
     );
   }
 
+  // Sisa kode (showPhotoDialog, _buildFeedbackSection, _buildInfoCard, _buildDetailRow, _SliverTabBarDelegate) tetap sama
+  // ... (salin sisa kode dari file asli Anda ke sini)
   void _showPhotoDialog(String imageUrl) {
     showDialog(
       context: context,
