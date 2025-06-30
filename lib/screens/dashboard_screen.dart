@@ -324,8 +324,8 @@ class _DashboardScreenState extends State<DashboardScreen>
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              const Color.fromARGB(255, 155, 118, 224),
-              const Color.fromARGB(255, 255, 236, 252),
+              const Color.fromARGB(255, 173, 139, 235),
+              const Color.fromARGB(255, 252, 252, 252),
             ],
             stops: const [0.0, 0.4],
           ),
