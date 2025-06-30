@@ -375,20 +375,29 @@ class _EventDetailScreenState extends State<EventDetailScreen>
             ),
           ];
         },
-        body: Column(
-          children: [
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildDetailTab(event, date, time),
-                  _buildMeetingMinutesTab(),
-                  _buildDocumentationTab(),
-                ],
+        body: SingleChildScrollView(
+          // <--- TAMBAHKAN WIDGET INI
+          child: Column(
+            children: [
+              // ConstrainedBox diperlukan agar TabBarView tidak error di dalam SingleChildScrollView
+              ConstrainedBox(
+                constraints: BoxConstraints(
+                  // Mengambil tinggi layar dikurangi beberapa elemen UI lain
+                  // Sesuaikan nilai 180 jika perlu
+                  maxHeight: MediaQuery.of(context).size.height - 180,
+                ),
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildDetailTab(event, date, time),
+                    _buildMeetingMinutesTab(),
+                    _buildDocumentationTab(),
+                  ],
+                ),
               ),
-            ),
-            _buildFeedbackSection(),
-          ],
+              _buildFeedbackSection(),
+            ],
+          ),
         ),
       ),
     );

@@ -9,8 +9,9 @@ import 'package:flutter_html/flutter_html.dart';
 // TODO: Sesuaikan path import ini dengan struktur proyek Anda
 import 'event_detail_screen.dart';
 import 'news_detail_screen.dart';
-import '../services/firebase_service.dart';
 import 'package:opn_app/services/api_service.dart';
+
+import 'package:opn_app/services/notification_service.dart';
 
 class DashboardScreen extends StatefulWidget {
   final String fullName;
@@ -143,12 +144,15 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Future<void> _requestNotificationPermission() async {
-    bool permissionGranted = await FirebaseService.requestPermission();
+    // Gunakan NotificationService yang baru
+    final notificationService = NotificationService();
+
+    bool permissionGranted = await notificationService.requestPermission();
 
     if (permissionGranted) {
-      final token = await FirebaseService.getToken();
+      final token = await notificationService.getToken();
       if (token != null) {
-        final success = await FirebaseService.sendTokenToServer(token);
+        final success = await notificationService.sendTokenToServer(token);
         if (mounted) {
           if (success) {
             setState(() {
