@@ -271,6 +271,7 @@ class _EventDetailScreenState extends State<EventDetailScreen>
     }
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) {
           return [
@@ -375,30 +376,20 @@ class _EventDetailScreenState extends State<EventDetailScreen>
             ),
           ];
         },
-        body: SingleChildScrollView(
-          // <--- TAMBAHKAN WIDGET INI
-          child: Column(
-            children: [
-              // ConstrainedBox diperlukan agar TabBarView tidak error di dalam SingleChildScrollView
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  // Mengambil tinggi layar dikurangi beberapa elemen UI lain
-                  // Sesuaikan nilai 180 jika perlu
-                  maxHeight: MediaQuery.of(context).size.height - 200,
-                ),
-                child: TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildDetailTab(event, date, time),
-                    _buildMeetingMinutesTab(),
-                    _buildDocumentationTab(),
-                  ],
-                ),
+        body: Column(
+          children: [
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildDetailTab(event, date, time),
+                  _buildMeetingMinutesTab(),
+                  _buildDocumentationTab(),
+                ],
               ),
-              const SizedBox(height: 30),
-              _buildFeedbackSection(),
-            ],
-          ),
+            ),
+            _buildFeedbackSection(),
+          ],
         ),
       ),
     );
