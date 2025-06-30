@@ -384,7 +384,7 @@ class _EventDetailScreenState extends State<EventDetailScreen>
                 constraints: BoxConstraints(
                   // Mengambil tinggi layar dikurangi beberapa elemen UI lain
                   // Sesuaikan nilai 180 jika perlu
-                  maxHeight: MediaQuery.of(context).size.height - 80,
+                  maxHeight: MediaQuery.of(context).size.height - 200,
                 ),
                 child: TabBarView(
                   controller: _tabController,
@@ -395,6 +395,7 @@ class _EventDetailScreenState extends State<EventDetailScreen>
                   ],
                 ),
               ),
+              const SizedBox(height: 30),
               _buildFeedbackSection(),
             ],
           ),
