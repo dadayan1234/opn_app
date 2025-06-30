@@ -37,7 +37,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final success = await AuthService.login(username, password);
       if (success) {
         // Request notification permission after successful login
-        _requestNotificationPermission();
+        // _requestNotificationPermission();
 
         final userInfo = await AuthService.getUserInfo();
 
@@ -83,21 +83,21 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _requestNotificationPermission() async {
-    final notificationService = NotificationService();
+  // Future<void> _requestNotificationPermission() async {
+  //   final notificationService = NotificationService();
 
-    // 1. Meminta izin notifikasi kepada pengguna.
-    bool permissionGranted = await notificationService.requestPermission();
+  //   // 1. Meminta izin notifikasi kepada pengguna.
+  //   bool permissionGranted = await notificationService.requestPermission();
 
-    if (permissionGranted) {
-      // Get FCM token
-      final token = await notificationService.getToken();
-      if (token != null) {
-        // Send the token to your server
-        await notificationService.sendTokenToServer(token);
-      }
-    }
-  }
+  //   if (permissionGranted) {
+  //     // Get FCM token
+  //     final token = await notificationService.getToken();
+  //     if (token != null) {
+  //       // Send the token to your server
+  //       await notificationService.sendTokenToServer(token);
+  //     }
+  //   }
+  // }
 
   @override
   Widget build(BuildContext context) {

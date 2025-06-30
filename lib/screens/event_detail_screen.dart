@@ -271,7 +271,6 @@ class _EventDetailScreenState extends State<EventDetailScreen>
     }
 
     return Scaffold(
-      resizeToAvoidBottomInset: false,
       body: NestedScrollView(
         headerSliverBuilder: (context, innerBoxIsScrolled) {
           return [
