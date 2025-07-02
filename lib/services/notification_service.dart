@@ -1,24 +1,147 @@
 // lib/services/notification_service.dart
+
 import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
-// PENTING: Handler ini HARUS berada di level atas (top-level function), tidak di dalam class.
+import '../screens/event_detail_screen.dart';
+import '../screens/news_detail_screen.dart';
+import '../services/navigation_service.dart';
+
+// Global instance untuk background handler
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Pastikan Firebase diinisialisasi
+  print('Background message received: ${message.data}');
+
   await Firebase.initializeApp();
-  print("Handling a background message: ${message.messageId}");
-  // Di sini Anda bisa menambahkan logika lain jika diperlukan saat notifikasi background masuk.
-  // Namun, menampilkan notifikasi di background/terminated sudah di-handle otomatis oleh FCM
-  // jika payload berisi key 'notification'.
+
+  // Inisialisasi local notifications untuk background
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('@drawable/ic_notification');
+  const InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+  );
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
+  // Ambil title dan body dari data payload
+  final String title = message.data['title'] ?? 'Notifikasi Baru';
+  final String body = message.data['body'] ?? 'Anda memiliki pesan baru.';
+
+  const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
+    'high_importance_channel',
+    'High Importance Notifications',
+    channelDescription: 'This channel is used for important notifications.',
+    importance: Importance.max,
+    priority: Priority.high,
+    showWhen: true,
+    enableVibration: true,
+    playSound: true,
+  );
+
+  const NotificationDetails notificationDetails = NotificationDetails(
+    android: androidDetails,
+  );
+
+  await flutterLocalNotificationsPlugin.show(
+    DateTime.now().millisecondsSinceEpoch ~/ 1000, // ID unik
+    title,
+    body,
+    notificationDetails,
+    payload: jsonEncode(message.data),
+  );
+}
+
+Future<void> _handleMessageNavigation(Map<String, dynamic> data) async {
+  print('Handling navigation with data: $data');
+
+  final String? type = data['type'];
+  final String? idString = data['id'];
+
+  if (type == null || idString == null) {
+    print('Missing type or id in notification data');
+    return;
+  }
+
+  final int? id = int.tryParse(idString);
+  if (id == null) {
+    print('Invalid ID format: $idString');
+    return;
+  }
+
+  final prefs = await SharedPreferences.getInstance();
+  final authToken = prefs.getString('access_token');
+  if (authToken == null) {
+    print('No auth token available');
+    return;
+  }
+
+  final headers = {
+    'accept': 'application/json',
+    'Authorization': 'Bearer $authToken',
+  };
+
+  final context = NavigationService.navigatorKey.currentContext;
+  if (context == null) {
+    print('No navigation context available');
+    return;
+  }
+
+  // Show loading dialog
+  showDialog(
+    context: context,
+    barrierDismissible: false,
+    builder:
+        (BuildContext context) =>
+            const Center(child: CircularProgressIndicator()),
+  );
+
+  try {
+    http.Response response;
+    Widget? targetPage;
+
+    if (type == 'event') {
+      response = await http.get(
+        Uri.parse('https://beopn.penaku.site/api/v1/events/$id'),
+        headers: headers,
+      );
+      if (response.statusCode == 200) {
+        targetPage = EventDetailScreen(event: json.decode(response.body));
+      }
+    } else if (type == 'news') {
+      response = await http.get(
+        Uri.parse('https://beopn.penaku.site/api/v1/news/$id'),
+        headers: headers,
+      );
+      if (response.statusCode == 200) {
+        targetPage = NewsDetailScreen(newsId: id);
+      }
+    }
+
+    // Close loading dialog
+    Navigator.of(context, rootNavigator: true).pop();
+
+    if (targetPage != null) {
+      Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => targetPage!));
+    } else {
+      print('Failed to create target page for type: $type, id: $id');
+    }
+  } catch (e) {
+    // Close loading dialog on error
+    Navigator.of(context, rootNavigator: true).pop();
+    print("Error during navigation data fetch: $e");
+  }
 }
 
 class NotificationService {
-  // Singleton pattern untuk memastikan hanya ada satu instance dari service ini
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
@@ -27,126 +150,169 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _localNotifications =
       FlutterLocalNotificationsPlugin();
 
-  // Channel untuk notifikasi Android
   final AndroidNotificationChannel _androidChannel =
       const AndroidNotificationChannel(
-        'high_importance_channel', // id
-        'High Importance Notifications', // title
-        description:
-            'This channel is used for important notifications.', // description
+        'high_importance_channel',
+        'High Importance Notifications',
+        description: 'This channel is used for important notifications.',
         importance: Importance.max,
       );
 
-  /// Inisialisasi semua layanan notifikasi. Panggil sekali di main.dart
   Future<void> initialize() async {
-    // 1. Inisialisasi Firebase (jika belum)
-    // Sebaiknya Firebase.initializeApp() tetap di main() untuk kejelasan.
+    print('Initializing NotificationService...');
 
-    // 2. Pengaturan notifikasi untuk foreground di iOS & Web
+    // Set foreground notification options
     await _messaging.setForegroundNotificationPresentationOptions(
       alert: true,
       badge: true,
       sound: true,
     );
 
-    // 3. Inisialisasi Local Notifications
-    const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings(
-          '@mipmap/ic_launcher',
-        ); // <-- PERBAIKAN IKON
-    const DarwinInitializationSettings initializationSettingsIOS =
-        DarwinInitializationSettings();
-
-    const InitializationSettings initializationSettings =
-        InitializationSettings(
-          android: initializationSettingsAndroid,
-          iOS: initializationSettingsIOS,
-        );
-    await _localNotifications.initialize(initializationSettings);
-
-    // 4. Buat Channel Notifikasi untuk Android
+    // Create notification channel for Android
     await _localNotifications
         .resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin
         >()
         ?.createNotificationChannel(_androidChannel);
 
-    // 5. Setup Handler Notifikasi
-    _setupMessageHandlers();
+    // Initialize local notifications
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@drawable/ic_notification');
+    const InitializationSettings initializationSettings =
+        InitializationSettings(android: initializationSettingsAndroid);
 
-    // 6. Cek dan kirim token FCM ke server
-    _checkAndSendToken();
-  }
+    await _localNotifications.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        print('Local notification tapped with payload: ${response.payload}');
+        if (response.payload != null) {
+          _handleMessageNavigation(jsonDecode(response.payload!));
+        }
+      },
+    );
 
-  void _setupMessageHandlers() {
-    // Handler untuk pesan saat aplikasi di FOREGROUND
+    // Handle foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      print('Foreground message received: ${message.notification?.title}');
-      RemoteNotification? notification = message.notification;
-      AndroidNotification? android = message.notification?.android;
+      print('Foreground message received: ${message.data}');
 
-      // Tampilkan notifikasi lokal HANYA jika ada payload notifikasi
-      if (notification != null && android != null) {
-        _localNotifications.show(
-          notification.hashCode,
-          notification.title,
-          notification.body,
-          NotificationDetails(
-            android: AndroidNotificationDetails(
-              _androidChannel.id,
-              _androidChannel.name,
-              channelDescription: _androidChannel.description,
-              icon: '@mipmap/ic_launcher', // <-- PERBAIKAN IKON
-              priority: Priority.high,
-              importance: Importance.max,
-            ),
-            iOS: const DarwinNotificationDetails(
-              presentAlert: true,
-              presentBadge: true,
-              presentSound: true,
-            ),
-          ),
-          payload: jsonEncode(message.data), // kirim data jika ada
-        );
-      }
+      // Ambil title dan body dari data payload (bukan dari notification)
+      final String title = message.data['title'] ?? 'Notifikasi Baru';
+      final String body = message.data['body'] ?? 'Anda memiliki pesan baru.';
+
+      // Tampilkan notifikasi lokal
+      _showLocalNotification(title, body, message.data);
     });
 
-    // Handler untuk pesan yang diklik saat aplikasi di BACKGROUND
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print('Message opened from background: ${message.data}');
-      // TODO: Navigasi ke halaman tertentu berdasarkan message.data
-      // contoh: if (message.data['type'] == 'event') { ... }
-    });
-
-    // Handler untuk pesan saat aplikasi dibuka dari kondisi TERMINATED
-    _messaging.getInitialMessage().then((RemoteMessage? message) {
-      if (message != null) {
-        print('Message opened from terminated: ${message.data}');
-        // TODO: Navigasi ke halaman tertentu berdasarkan message.data
-      }
-    });
-
-    // Handler untuk background message (ketika pesan diterima, bukan diklik)
+    // Set background message handler
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+    print('NotificationService initialized successfully');
   }
 
-  /// Meminta izin notifikasi kepada pengguna
+  Future<void> _showLocalNotification(
+    String title,
+    String body,
+    Map<String, dynamic> data,
+  ) async {
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+          'high_importance_channel',
+          'High Importance Notifications',
+          channelDescription:
+              'This channel is used for important notifications.',
+          icon: '@drawable/ic_notification',
+          priority: Priority.high,
+          importance: Importance.max,
+          showWhen: true,
+          enableVibration: true,
+          playSound: true,
+          autoCancel: true,
+        );
+
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const NotificationDetails notificationDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _localNotifications.show(
+      DateTime.now().millisecondsSinceEpoch ~/ 1000, // ID unik
+      title,
+      body,
+      notificationDetails,
+      payload: jsonEncode(data),
+    );
+  }
+
+  Future<void> setupInteractedMessage() async {
+    print('Setting up message interaction handlers...');
+
+    // Handle app launched from terminated state
+    RemoteMessage? initialMessage = await _messaging.getInitialMessage();
+    if (initialMessage != null) {
+      print(
+        'App opened from terminated state with message: ${initialMessage.data}',
+      );
+      // Delay navigation untuk memastikan app sudah fully loaded
+      Future.delayed(const Duration(seconds: 1), () {
+        _handleMessageNavigation(initialMessage.data);
+      });
+    }
+
+    // Handle app opened from background state
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      print('App opened from background with message: ${message.data}');
+      _handleMessageNavigation(message.data);
+    });
+
+    print('Message interaction handlers set up successfully');
+  }
+
   Future<bool> requestPermission() async {
-    final settings = await _messaging.requestPermission();
-    return settings.authorizationStatus == AuthorizationStatus.authorized;
+    print('Requesting notification permission...');
+
+    final settings = await _messaging.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+      sound: true,
+    );
+
+    final isAuthorized =
+        settings.authorizationStatus == AuthorizationStatus.authorized;
+    print('Permission status: ${settings.authorizationStatus}');
+
+    return isAuthorized;
   }
 
-  /// Mendapatkan FCM token
   Future<String?> getToken() async {
-    return await _messaging.getToken();
+    try {
+      final token = await _messaging.getToken();
+      print('FCM Token: $token');
+      return token;
+    } catch (e) {
+      print('Error getting FCM token: $e');
+      return null;
+    }
   }
 
-  /// Mengirim token ke server Anda
   Future<bool> sendTokenToServer(String token) async {
+    print('Sending token to server: $token');
+
     final prefs = await SharedPreferences.getInstance();
     final authToken = prefs.getString('access_token');
-
-    if (authToken == null) return false;
+    if (authToken == null) {
+      print('No auth token available');
+      return false;
+    }
 
     try {
       final response = await http.post(
@@ -159,12 +325,14 @@ class NotificationService {
         body: jsonEncode({'token': token}),
       );
 
+      print('Server response: ${response.statusCode} - ${response.body}');
+
       if (response.statusCode == 200 || response.statusCode == 201) {
         await prefs.setBool('fcm_token_sent', true);
         print('FCM Token successfully sent to server.');
         return true;
       } else {
-        print('Failed to send FCM token. Status: ${response.statusCode}');
+        print('Failed to send token. Status: ${response.statusCode}');
         return false;
       }
     } catch (e) {
@@ -173,19 +341,26 @@ class NotificationService {
     }
   }
 
-  /// Cek jika token sudah pernah dikirim, jika belum, kirim.
-  /// Juga setup listener untuk pembaruan token.
-  Future<void> _checkAndSendToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    final tokenSent = prefs.getBool('fcm_token_sent') ?? false;
+  Future<void> registerTokenAfterLogin() async {
+    print('Registering token after login...');
 
-    if (!tokenSent) {
-      final token = await getToken();
-      if (token != null) {
-        await sendTokenToServer(token);
-      }
+    bool permissionGranted = await requestPermission();
+    if (!permissionGranted) {
+      print("Notification permission not granted. Token not sent.");
+      return;
     }
 
-    _messaging.onTokenRefresh.listen(sendTokenToServer);
+    final String? token = await getToken();
+    if (token != null) {
+      await sendTokenToServer(token);
+
+      // Set up token refresh listener
+      _messaging.onTokenRefresh.listen((newToken) {
+        print('Token refreshed: $newToken');
+        sendTokenToServer(newToken);
+      });
+    } else {
+      print('Failed to get FCM token');
+    }
   }
 }

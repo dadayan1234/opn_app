@@ -6,7 +6,7 @@ import 'package:intl/date_symbol_data_local.dart';
 
 // Import services dan screens
 import 'services/navigation_service.dart';
-import 'services/notification_service.dart'; // <-- Pastikan import ini ada
+import 'services/notification_service.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
@@ -17,8 +17,9 @@ import 'screens/profile_screen.dart';
 import 'screens/news_screen.dart';
 import 'screens/finance_screen.dart';
 
-// Fungsi main yang sudah diperbaiki dan disederhanakan
 void main() async {
+  print('Starting app initialization...');
+
   // 1. Memastikan semua binding widget siap sebelum menjalankan kode async.
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -27,11 +28,13 @@ void main() async {
 
   // 3. Inisialisasi Firebase. Ini adalah langkah wajib.
   await Firebase.initializeApp();
+  print('Firebase initialized');
 
-  // 4. Inisialisasi semua layanan notifikasi dari satu tempat.
-  // Panggilan ini akan menjalankan semua setup yang ada di NotificationService,
-  // termasuk listener untuk foreground, background, dan setup channel.
-  await NotificationService().initialize();
+  // 4. Inisialisasi NotificationService di sini untuk memastikan
+  //    background handler terdaftar sebelum app running
+  final notificationService = NotificationService();
+  await notificationService.initialize();
+  print('Notification service initialized');
 
   // 5. Menjalankan aplikasi.
   runApp(const MyApp());
@@ -44,12 +47,33 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    // initState kini bersih dari logika notifikasi apa pun, karena semuanya
-    // sudah ditangani secara terpusat oleh NotificationService.
+    WidgetsBinding.instance.addObserver(this);
+
+    // Setup notification interaction setelah app siap
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await NotificationService().setupInteractedMessage();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    print('App lifecycle state changed: $state');
+
+    if (state == AppLifecycleState.resumed) {
+      // App kembali ke foreground, setup ulang interaction handler
+      NotificationService().setupInteractedMessage();
+    }
   }
 
   @override
@@ -58,7 +82,11 @@ class _MyAppState extends State<MyApp> {
       title: 'OPN Mobile',
       navigatorKey: NavigationService.navigatorKey,
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(primarySwatch: Colors.deepPurple),
+      theme: ThemeData(
+        primarySwatch: Colors.deepPurple,
+        // Tambahkan konfigurasi untuk notification
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+      ),
       initialRoute: '/',
       routes: {
         '/': (context) => const SplashScreen(),

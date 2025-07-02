@@ -103,7 +103,7 @@ class _BiodataFormScreenState extends State<BiodataFormScreen> {
 
   Future<void> _uploadImage(File imageFile, int userId, String token) async {
     final request = http.MultipartRequest(
-      'POST',
+      'PUT',
       Uri.parse('https://beopn.penaku.site/api/v1/uploads/users/$userId/photo'),
     );
     request.headers['Authorization'] = 'Bearer $token';

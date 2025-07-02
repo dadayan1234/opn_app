@@ -38,6 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (success) {
         // Request notification permission after successful login
         // _requestNotificationPermission();
+        await NotificationService().registerTokenAfterLogin();
 
         final userInfo = await AuthService.getUserInfo();
 
