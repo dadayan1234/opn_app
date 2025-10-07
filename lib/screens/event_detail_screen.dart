@@ -10,7 +10,6 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'dart:typed_data';
-// --- PERUBAHAN: Import package baru ---
 import 'package:flutter_html/flutter_html.dart';
 
 class EventDetailScreen extends StatefulWidget {
@@ -29,6 +28,8 @@ class _EventDetailScreenState extends State<EventDetailScreen>
   bool isLoadingMinutes = true;
   bool hasSentFeedback = false;
   bool isSubmittingFeedback = false;
+  // --- PERUBAHAN BARU: State untuk status download PDF ---
+  bool isDownloadingPdf = false;
   final TextEditingController _feedbackController = TextEditingController();
 
   static const String apiPrefix = 'https://beopn.penaku.site/api/v1';
@@ -174,7 +175,6 @@ class _EventDetailScreenState extends State<EventDetailScreen>
     }
   }
 
-  // --- PERUBAHAN: Fungsi baru untuk mengunduh gambar ---
   Future<void> _downloadImage(String imageUrl) async {
     if (!mounted) return;
 
@@ -188,7 +188,6 @@ class _EventDetailScreenState extends State<EventDetailScreen>
     );
 
     try {
-      // 1. Download data gambar sebagai byte
       final dio = Dio();
       final response = await dio.get(
         imageUrl,
@@ -199,10 +198,7 @@ class _EventDetailScreenState extends State<EventDetailScreen>
       );
       final Uint8List imageBytes = response.data;
 
-      // 2. Dapatkan direktori sementara di aplikasi
       final tempDir = await getTemporaryDirectory();
-
-      // 3. Buat file di direktori sementara tersebut
       final String fileName =
           "event_doc_${DateTime.now().millisecondsSinceEpoch}.jpg";
       final File tempFile = File('${tempDir.path}/$fileName');
@@ -210,7 +206,6 @@ class _EventDetailScreenState extends State<EventDetailScreen>
 
       if (!mounted) return;
 
-      // 4. Bagikan file yang sudah dibuat menggunakan share_plus
       final xfile = XFile(tempFile.path);
       await Share.shareXFiles([xfile], text: 'Dokumen Event');
     } catch (e) {
@@ -225,7 +220,81 @@ class _EventDetailScreenState extends State<EventDetailScreen>
     }
   }
 
-  // --- PERUBAHAN: Fungsi _formatHtmlContent dihapus karena tidak digunakan lagi ---
+  // --- PERUBAHAN BARU: Fungsi untuk mengunduh dan membagikan PDF Kehadiran ---
+  Future<void> _downloadAttendancePdf() async {
+    if (!mounted || authToken == null) return;
+
+    final eventId = widget.event['id'];
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+
+    setState(() {
+      isDownloadingPdf = true;
+    });
+
+    scaffoldMessenger.showSnackBar(
+      const SnackBar(
+        content: Text('Mempersiapkan PDF kehadiran...'),
+        backgroundColor: Colors.blue,
+      ),
+    );
+
+    try {
+      final dio = Dio();
+      final response = await dio.get(
+        '$apiPrefix/events/$eventId/attendance/pdf',
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: {'accept': '*/*', 'Authorization': 'Bearer $authToken'},
+        ),
+      );
+
+      final Uint8List pdfBytes = response.data;
+
+      // Ambil nama file dari header 'content-disposition'
+      String fileName =
+          'daftar_hadir_event_${eventId}.pdf'; // Fallback filename
+      final contentDisposition = response.headers.value('content-disposition');
+      if (contentDisposition != null) {
+        final fileNamePart = contentDisposition
+            .split(';')
+            .firstWhere(
+              (part) => part.trim().startsWith('filename='),
+              orElse: () => '',
+            );
+        if (fileNamePart.isNotEmpty) {
+          fileName = fileNamePart.split('=').last.replaceAll('"', '').trim();
+        }
+      }
+
+      // Simpan file ke direktori sementara
+      final tempDir = await getTemporaryDirectory();
+      final File tempFile = File('${tempDir.path}/$fileName');
+      await tempFile.writeAsBytes(pdfBytes);
+
+      if (!mounted) return;
+
+      // Bagikan file menggunakan share_plus
+      final xfile = XFile(tempFile.path);
+      await Share.shareXFiles([
+        xfile,
+      ], text: 'PDF Kehadiran untuk event: ${widget.event['title']}');
+    } catch (e) {
+      print("ERROR saat proses download PDF: $e");
+      if (!mounted) return;
+      scaffoldMessenger.showSnackBar(
+        SnackBar(
+          content: Text('Gagal mengunduh PDF: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          isDownloadingPdf = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -282,7 +351,9 @@ class _EventDetailScreenState extends State<EventDetailScreen>
                 background: Stack(
                   fit: StackFit.expand,
                   children: [
-                    authToken != null
+                    (authToken != null &&
+                            imagePath.isNotEmpty &&
+                            !imagePath.contains('2025-05-13'))
                         ? Image(
                           image: CachedNetworkImageProvider(
                             imageUrl,
@@ -311,13 +382,10 @@ class _EventDetailScreenState extends State<EventDetailScreen>
                                 ),
                               ),
                         )
-                        : Container(
-                          color: Colors.grey[300],
-                          child: const Icon(
-                            Icons.image_not_supported,
-                            size: 50,
-                            color: Colors.grey,
-                          ),
+                        : Image.asset(
+                          // Muat gambar lokal jika tidak ada
+                          'assets/images/banner_event.jpg',
+                          fit: BoxFit.cover,
                         ),
                     Container(
                       decoration: BoxDecoration(
@@ -445,7 +513,6 @@ class _EventDetailScreenState extends State<EventDetailScreen>
           ),
           const SizedBox(height: 12),
           _buildDetailRow('ID Event', event['id']?.toString() ?? '-'),
-          // --- PERUBAHAN: Logika untuk menampilkan 'Admin' ---
           _buildDetailRow(
             'Dibuat oleh',
             (event['created_by']?.toString() == '1')
@@ -470,6 +537,40 @@ class _EventDetailScreenState extends State<EventDetailScreen>
                 ).format(DateTime.parse(event['updated_at']))
                 : '-',
           ),
+
+          // --- PERUBAHAN BARU: Tombol download PDF jika event selesai ---
+          if (event['status']?.toLowerCase() == 'selesai') ...[
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: isDownloadingPdf ? null : _downloadAttendancePdf,
+                icon:
+                    isDownloadingPdf
+                        ? Container(
+                          width: 20,
+                          height: 20,
+                          padding: const EdgeInsets.all(2.0),
+                          child: const CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                        : const Icon(Icons.picture_as_pdf_outlined, size: 20),
+                label: Text(
+                  isDownloadingPdf ? 'Memproses...' : 'Download Presensi (PDF)',
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -548,7 +649,6 @@ class _EventDetailScreenState extends State<EventDetailScreen>
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: Colors.grey[200]!),
                     ),
-                    // --- PERUBAHAN: Merender HTML ---
                     child: Html(
                       data: minute['description'],
                       style: {
@@ -563,7 +663,6 @@ class _EventDetailScreenState extends State<EventDetailScreen>
                 if (minute['document_url'] != null &&
                     minute['document_url'].isNotEmpty)
                   ElevatedButton.icon(
-                    // --- PERUBAHAN: Memperbaiki URL ---
                     onPressed: () {
                       final fullUrl = "${minute['document_url']}";
                       _launchUrl(fullUrl);
@@ -621,7 +720,6 @@ class _EventDetailScreenState extends State<EventDetailScreen>
 
         return GestureDetector(
           onTap: () => _showPhotoDialog(photoUrl),
-          // --- PERUBAHAN: Menambahkan Stack untuk tombol download ---
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -674,7 +772,6 @@ class _EventDetailScreenState extends State<EventDetailScreen>
                           ),
                 ),
               ),
-              // --- PERUBAHAN: Tombol Download ---
               Positioned(
                 bottom: 8,
                 right: 8,
@@ -702,8 +799,6 @@ class _EventDetailScreenState extends State<EventDetailScreen>
     );
   }
 
-  // Sisa kode (showPhotoDialog, _buildFeedbackSection, _buildInfoCard, _buildDetailRow, _SliverTabBarDelegate) tetap sama
-  // ... (salin sisa kode dari file asli Anda ke sini)
   void _showPhotoDialog(String imageUrl) {
     showDialog(
       context: context,

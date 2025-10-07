@@ -625,8 +625,11 @@ class _DashboardScreenState extends State<DashboardScreen>
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child:
-                  (authToken != null && imagePath.isNotEmpty)
+                  (authToken != null &&
+                          imagePath.isNotEmpty &&
+                          !imagePath.contains('2025-05-13'))
                       ? Image(
+                        // Muat gambar dari jaringan jika ada
                         image: CachedNetworkImageProvider(
                           imageUrl,
                           headers: {
@@ -656,11 +659,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                               child: const Icon(Icons.image_not_supported),
                             ),
                       )
-                      : Container(
+                      : Image.asset(
+                        // Muat gambar lokal jika tidak ada
+                        'assets/images/banner_event.jpg',
                         height: 150,
                         width: 280,
-                        color: Colors.grey[300],
-                        child: const Icon(Icons.image_not_supported),
+                        fit: BoxFit.cover,
                       ),
             ),
             Positioned.fill(

@@ -82,6 +82,7 @@ flutter:
   #   - images/a_dot_ham.jpeg
   assets:
     - assets/images/logo_opn.png
+    - assets/images/
 
 flutter_launcher_icons:
   image_path: "assets/images/logo_opn.png"

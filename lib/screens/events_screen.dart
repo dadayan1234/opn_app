@@ -274,7 +274,9 @@ class _EventsScreenState extends State<EventsScreen> {
               child: Stack(
                 children: [
                   // Image
-                  authToken != null
+                  (authToken != null &&
+                          imagePath.isNotEmpty &&
+                          !imagePath.contains('2025-05-13'))
                       ? Image(
                         image: CachedNetworkImageProvider(
                           imageUrl,
@@ -307,14 +309,12 @@ class _EventsScreenState extends State<EventsScreen> {
                               ),
                             ),
                       )
-                      : Container(
+                      : Image.asset(
+                        // Muat gambar lokal jika tidak ada
+                        'assets/images/banner_event.jpg',
                         height: 180,
-                        color: Colors.grey[300],
-                        child: const Icon(
-                          Icons.image_not_supported,
-                          size: 50,
-                          color: Colors.grey,
-                        ),
+                        width: double.infinity,
+                        fit: BoxFit.cover,
                       ),
 
                   // Status Badge
