@@ -22,8 +22,8 @@ class _NewsDetailScreenState extends State<NewsDetailScreen>
   bool isLoading = true;
 
   // API endpoint prefix
-  static const String apiPrefix = 'https://beopn.penaku.site/api/v1';
-  static const String apiImagePrefix = 'https://beopn.penaku.site';
+  static const String apiPrefix = 'https://beopn.pemudanambangan.site/api/v1';
+  static const String apiImagePrefix = 'https://beopn.pemudanambangan.site';
 
   // Animation controllers for skeleton
   late AnimationController _skeletonController;

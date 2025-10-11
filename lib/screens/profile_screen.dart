@@ -35,8 +35,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool isLoading = true;
   bool isSaving = false; // State untuk proses penyimpanan
 
-  static const String apiPrefix = 'https://beopn.penaku.site/api/v1';
-  static const String apiImagePrefix = 'https://beopn.penaku.site';
+  static const String apiPrefix = 'https://beopn.pemudanambangan.site/api/v1';
+  static const String apiImagePrefix = 'https://beopn.pemudanambangan.site';
 
   final List<String> _validDivisions = [
     'agama',

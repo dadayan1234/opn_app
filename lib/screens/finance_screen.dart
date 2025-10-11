@@ -23,7 +23,7 @@ class _FinanceScreenState extends State<FinanceScreen> {
   final int itemsPerPage = 15; // Menampilkan lebih banyak item per halaman
   final ScrollController _scrollController = ScrollController();
 
-  static const String apiPrefix = 'https://beopn.penaku.site/api/v1';
+  static const String apiPrefix = 'https://beopn.pemudanambangan.site/api/v1';
 
   @override
   void initState() {

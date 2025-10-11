@@ -6,7 +6,7 @@ import 'navigation_service.dart';
 import 'auth_service.dart';
 
 class ApiService {
-  static const String _apiPrefix = 'https://beopn.penaku.site/api/v1';
+  static const String _apiPrefix = 'https://beopn.pemudanambangan.site/api/v1';
   static bool _isRefreshing = false;
 
   // Fungsi internal untuk menangani logout dan redirect

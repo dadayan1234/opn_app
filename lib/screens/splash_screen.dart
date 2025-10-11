@@ -76,7 +76,7 @@ class _SplashScreenState extends State<SplashScreen> {
       print('Splash screen: Validating token with server...');
       final response = await http
           .get(
-            Uri.parse('https://beopn.penaku.site/api/v1/members/me'),
+            Uri.parse('https://beopn.pemudanambangan.site/api/v1/members/me'),
             headers: {
               'accept': 'application/json',
               'Authorization': 'Bearer $token',

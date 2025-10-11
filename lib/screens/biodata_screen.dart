@@ -89,7 +89,7 @@ class _BiodataFormScreenState extends State<BiodataFormScreen> {
 
   Future<Map<String, dynamic>?> _getUserInfo(String token) async {
     final response = await http.get(
-      Uri.parse('https://beopn.penaku.site/api/v1/members/me'),
+      Uri.parse('https://beopn.pemudanambangan.site/api/v1/members/me'),
       headers: {'accept': 'application/json', 'Authorization': 'Bearer $token'},
     );
 
@@ -104,7 +104,9 @@ class _BiodataFormScreenState extends State<BiodataFormScreen> {
   Future<void> _uploadImage(File imageFile, int userId, String token) async {
     final request = http.MultipartRequest(
       'PUT',
-      Uri.parse('https://beopn.penaku.site/api/v1/uploads/users/$userId/photo'),
+      Uri.parse(
+        'https://beopn.pemudanambangan.site/api/v1/uploads/users/$userId/photo',
+      ),
     );
     request.headers['Authorization'] = 'Bearer $token';
     request.headers['accept'] = 'application/json';
@@ -153,7 +155,7 @@ class _BiodataFormScreenState extends State<BiodataFormScreen> {
     }
 
     final biodataResponse = await http.post(
-      Uri.parse('https://beopn.penaku.site/api/v1/members/biodata/'),
+      Uri.parse('https://beopn.pemudanambangan.site/api/v1/members/biodata/'),
       headers: {
         'accept': 'application/json',
         'Authorization': 'Bearer $token',

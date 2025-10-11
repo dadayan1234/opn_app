@@ -3,7 +3,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
-  static const String baseUrl = 'https://beopn.penaku.site';
+  static const String baseUrl = 'https://beopn.pemudanambangan.site';
 
   // Login dengan opsi menyimpan kredensial
   static Future<bool> login(

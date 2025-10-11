@@ -23,8 +23,8 @@ class _FinanceDetailScreenState extends State<FinanceDetailScreen> {
   Map<String, dynamic>? transaction;
   bool isLoading = true;
 
-  static const String apiPrefix = 'https://beopn.penaku.site/api/v1';
-  static const String apiImagePrefix = 'https://beopn.penaku.site';
+  static const String apiPrefix = 'https://beopn.pemudanambangan.site/api/v1';
+  static const String apiImagePrefix = 'https://beopn.pemudanambangan.site';
 
   @override
   void initState() {

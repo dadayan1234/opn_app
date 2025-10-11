@@ -108,7 +108,7 @@ Future<void> _handleMessageNavigation(Map<String, dynamic> data) async {
 
     if (type == 'event') {
       response = await http.get(
-        Uri.parse('https://beopn.penaku.site/api/v1/events/$id'),
+        Uri.parse('https://beopn.pemudanambangan.site/api/v1/events/$id'),
         headers: headers,
       );
       if (response.statusCode == 200) {
@@ -116,7 +116,7 @@ Future<void> _handleMessageNavigation(Map<String, dynamic> data) async {
       }
     } else if (type == 'news') {
       response = await http.get(
-        Uri.parse('https://beopn.penaku.site/api/v1/news/$id'),
+        Uri.parse('https://beopn.pemudanambangan.site/api/v1/news/$id'),
         headers: headers,
       );
       if (response.statusCode == 200) {
@@ -316,7 +316,7 @@ class NotificationService {
 
     try {
       final response = await http.post(
-        Uri.parse('https://beopn.penaku.site/api/v1/notifications/fcm-token'),
+        Uri.parse('https://beopn.pemudanambangan.site/api/v1/notifications/fcm-token'),
         headers: {
           'accept': 'application/json',
           'Authorization': 'Bearer $authToken',

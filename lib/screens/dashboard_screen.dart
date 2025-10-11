@@ -31,8 +31,8 @@ class _DashboardScreenState extends State<DashboardScreen>
   bool isNotificationEnabled = false;
   bool isLoading = true;
 
-  static const String apiPrefix = 'https://beopn.penaku.site/api/v1';
-  static const String apiImagePrefix = 'https://beopn.penaku.site';
+  static const String apiPrefix = 'https://beopn.pemudanambangan.site/api/v1';
+  static const String apiImagePrefix = 'https://beopn.pemudanambangan.site';
 
   late AnimationController _skeletonController;
   late Animation<double> _skeletonAnimation;

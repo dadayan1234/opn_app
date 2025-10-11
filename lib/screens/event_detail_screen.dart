@@ -32,8 +32,8 @@ class _EventDetailScreenState extends State<EventDetailScreen>
   bool isDownloadingPdf = false;
   final TextEditingController _feedbackController = TextEditingController();
 
-  static const String apiPrefix = 'https://beopn.penaku.site/api/v1';
-  static const String apiImagePrefix = 'https://beopn.penaku.site';
+  static const String apiPrefix = 'https://beopn.pemudanambangan.site/api/v1';
+  static const String apiImagePrefix = 'https://beopn.pemudanambangan.site';
 
   late TabController _tabController;
 

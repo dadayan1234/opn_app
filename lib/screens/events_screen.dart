@@ -23,8 +23,8 @@ class _EventsScreenState extends State<EventsScreen> {
   final int limit = 10;
 
   // API endpoint prefix
-  static const String apiPrefix = 'https://beopn.penaku.site/api/v1';
-  static const String apiImagePrefix = 'https://beopn.penaku.site';
+  static const String apiPrefix = 'https://beopn.pemudanambangan.site/api/v1';
+  static const String apiImagePrefix = 'https://beopn.pemudanambangan.site';
 
   final ScrollController _scrollController = ScrollController();
 
