@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:async';
+import '../services/auth_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -41,8 +42,33 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     if (token == null) {
-      print('Splash screen: No token found, navigating to login');
-      Navigator.pushReplacementNamed(context, '/login');
+      // Coba auto-login jika ada kredensial tersimpan
+      print('Splash screen: No token found, checking for saved credentials');
+      final autoLoginSuccess = await AuthService.autoLogin();
+
+      if (autoLoginSuccess) {
+        print('Splash screen: Auto-login successful');
+        // Lanjutkan validasi dengan token baru
+        await _validateAndNavigate();
+      } else {
+        print('Splash screen: No saved credentials, navigating to login');
+        Navigator.pushReplacementNamed(context, '/login');
+      }
+      return;
+    }
+
+    // Validasi token yang ada
+    await _validateAndNavigate();
+  }
+
+  Future<void> _validateAndNavigate() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('access_token');
+
+    if (token == null) {
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
       return;
     }
 
@@ -76,16 +102,34 @@ class _SplashScreenState extends State<SplashScreen> {
         } else {
           Navigator.pushReplacementNamed(context, '/biodata');
         }
+      } else if (response.statusCode == 401) {
+        print('Splash screen: Token expired, attempting auto-login...');
+        // Token expired, coba auto-login
+        final autoLoginSuccess = await AuthService.autoLogin();
+
+        if (autoLoginSuccess) {
+          print('Splash screen: Auto-login successful, validating again...');
+          // Rekursif validasi dengan token baru
+          await _validateAndNavigate();
+        } else {
+          print('Splash screen: Auto-login failed, navigating to login');
+          Navigator.pushReplacementNamed(context, '/login');
+        }
       } else {
         print('Splash screen: Token invalid, status: ${response.statusCode}');
-        // Token tidak valid, arahkan ke login
         Navigator.pushReplacementNamed(context, '/login');
       }
     } catch (e) {
       print("Splash screen: Error checking auth: $e");
       if (mounted) {
-        // Jika ada error jaringan, anggap saja harus login ulang
-        Navigator.pushReplacementNamed(context, '/login');
+        // Coba auto-login jika ada error
+        final autoLoginSuccess = await AuthService.autoLogin();
+
+        if (autoLoginSuccess) {
+          await _validateAndNavigate();
+        } else {
+          Navigator.pushReplacementNamed(context, '/login');
+        }
       }
     }
   }

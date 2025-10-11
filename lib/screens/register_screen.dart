@@ -18,6 +18,53 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isConfirmObscure = true;
   bool _isLoading = false;
 
+  /// Validasi keamanan password
+  String? _validatePassword(String password) {
+    if (password.isEmpty) {
+      return 'Password tidak boleh kosong';
+    }
+
+    if (password.length < 8) {
+      return 'Password minimal 8 karakter';
+    }
+
+    if (!password.contains(RegExp(r'[A-Z]'))) {
+      return 'Password harus mengandung minimal 1 huruf besar';
+    }
+
+    if (!password.contains(RegExp(r'[a-z]'))) {
+      return 'Password harus mengandung minimal 1 huruf kecil';
+    }
+
+    if (!password.contains(RegExp(r'[0-9]'))) {
+      return 'Password harus mengandung minimal 1 angka';
+    }
+
+    if (!password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
+      return 'Password harus mengandung minimal 1 karakter spesial (!@#%^&*(),.?":{}|<>)';
+    }
+
+    return null; // Password valid
+  }
+
+  /// Cek kekuatan password (untuk feedback visual)
+  PasswordStrength _checkPasswordStrength(String password) {
+    if (password.isEmpty) return PasswordStrength.none;
+
+    int strength = 0;
+
+    if (password.length >= 8) strength++;
+    if (password.length >= 12) strength++;
+    if (password.contains(RegExp(r'[A-Z]'))) strength++;
+    if (password.contains(RegExp(r'[a-z]'))) strength++;
+    if (password.contains(RegExp(r'[0-9]'))) strength++;
+    if (password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) strength++;
+
+    if (strength <= 2) return PasswordStrength.weak;
+    if (strength <= 4) return PasswordStrength.medium;
+    return PasswordStrength.strong;
+  }
+
   void _register() async {
     // Validate inputs
     if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
@@ -26,6 +73,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
           content: Text('Username dan password tidak boleh kosong'),
         ),
       );
+      return;
+    }
+
+    // Validasi keamanan password
+    final passwordError = _validatePassword(_passwordController.text);
+    if (passwordError != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(passwordError)));
       return;
     }
 
@@ -81,6 +137,60 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
+  /// Widget untuk menampilkan indikator kekuatan password
+  Widget _buildPasswordStrengthIndicator() {
+    final strength = _checkPasswordStrength(_passwordController.text);
+
+    if (strength == PasswordStrength.none) {
+      return const SizedBox.shrink();
+    }
+
+    Color color;
+    String text;
+
+    switch (strength) {
+      case PasswordStrength.weak:
+        color = Colors.red;
+        text = 'Lemah';
+        break;
+      case PasswordStrength.medium:
+        color = Colors.orange;
+        text = 'Sedang';
+        break;
+      case PasswordStrength.strong:
+        color = Colors.green;
+        text = 'Kuat';
+        break;
+      default:
+        return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: LinearProgressIndicator(
+              value: strength.index / 3,
+              backgroundColor: Colors.grey[300],
+              color: color,
+              minHeight: 4,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            text,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -119,6 +229,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             TextField(
               controller: _passwordController,
               obscureText: _isObscure,
+              onChanged: (_) => setState(() {}), // Update strength indicator
               decoration: InputDecoration(
                 labelText: 'Password',
                 prefixIcon: const Icon(Icons.lock),
@@ -135,6 +246,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
+              ),
+            ),
+            _buildPasswordStrengthIndicator(),
+            const SizedBox(height: 8),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4),
+              child: Text(
+                'Password harus: minimal 8 karakter, huruf besar & kecil, angka, dan karakter spesial',
+                style: TextStyle(fontSize: 11, color: Colors.grey),
               ),
             ),
             const SizedBox(height: 15),
@@ -204,3 +324,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 }
+
+/// Enum untuk kekuatan password
+enum PasswordStrength { none, weak, medium, strong }

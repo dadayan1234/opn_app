@@ -5,7 +5,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AuthService {
   static const String baseUrl = 'https://beopn.penaku.site';
 
-  static Future<bool> login(String username, String password) async {
+  // Login dengan opsi menyimpan kredensial
+  static Future<bool> login(
+    String username,
+    String password, {
+    bool saveCredentials = true,
+  }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/api/v1/auth/token'),
       headers: {
@@ -28,6 +33,13 @@ class AuthService {
 
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('access_token', token);
+
+      // Simpan username dan password untuk auto-login
+      if (saveCredentials) {
+        await prefs.setString('saved_username', username);
+        await prefs.setString('saved_password', password);
+        print('Credentials saved for auto-login');
+      }
 
       return true;
     } else {
@@ -52,6 +64,31 @@ class AuthService {
     }
   }
 
+  // Auto-login menggunakan kredensial tersimpan
+  static Future<bool> autoLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    final username = prefs.getString('saved_username');
+    final password = prefs.getString('saved_password');
+
+    if (username == null || password == null) {
+      print('No saved credentials found for auto-login');
+      return false;
+    }
+
+    print('Attempting auto-login for user: $username');
+
+    // Login tanpa save credentials lagi (untuk avoid infinite loop)
+    final success = await login(username, password, saveCredentials: false);
+
+    if (success) {
+      print('Auto-login successful');
+    } else {
+      print('Auto-login failed');
+    }
+
+    return success;
+  }
+
   static Future<Map<String, dynamic>?> getUserInfo() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('access_token');
@@ -73,6 +110,13 @@ class AuthService {
 
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
+
+    // Hapus semua data terkait autentikasi dan notifikasi
     await prefs.remove('access_token');
+    await prefs.remove('saved_username');
+    await prefs.remove('saved_password');
+    await prefs.remove('fcm_token_sent');
+
+    print('User logged out, all credentials and FCM token cleared');
   }
 }

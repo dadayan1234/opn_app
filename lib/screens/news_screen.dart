@@ -17,6 +17,10 @@ class _NewsScreenState extends State<NewsScreen> with TickerProviderStateMixin {
   List<dynamic> news = [];
   String? authToken;
   bool isLoading = true;
+  bool isLoadingMore = false;
+  bool hasMoreData = true;
+  int currentSkip = 0;
+  final int pageSize = 10;
 
   // API endpoint prefix
   static const String apiPrefix = 'https://beopn.penaku.site/api/v1';
@@ -26,16 +30,21 @@ class _NewsScreenState extends State<NewsScreen> with TickerProviderStateMixin {
   late AnimationController _skeletonController;
   late Animation<double> _skeletonAnimation;
 
+  // Scroll controller untuk pagination
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
     _initializeAnimations();
+    _scrollController.addListener(_onScroll);
     _getToken().then((_) => _fetchNews());
   }
 
   @override
   void dispose() {
     _skeletonController.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -50,6 +59,15 @@ class _NewsScreenState extends State<NewsScreen> with TickerProviderStateMixin {
     );
   }
 
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      if (!isLoadingMore && hasMoreData) {
+        _loadMoreNews();
+      }
+    }
+  }
+
   Future<void> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -62,6 +80,9 @@ class _NewsScreenState extends State<NewsScreen> with TickerProviderStateMixin {
 
     setState(() {
       isLoading = true;
+      currentSkip = 0;
+      hasMoreData = true;
+      news = [];
     });
 
     final headers = {
@@ -71,13 +92,18 @@ class _NewsScreenState extends State<NewsScreen> with TickerProviderStateMixin {
 
     try {
       final response = await http.get(
-        Uri.parse('$apiPrefix/news/?skip=0&limit=100&is_published=true'),
+        Uri.parse(
+          '$apiPrefix/news/?skip=$currentSkip&limit=$pageSize&is_published=true',
+        ),
         headers: headers,
       );
 
       if (response.statusCode == 200) {
+        final List<dynamic> newData = json.decode(response.body);
         setState(() {
-          news = json.decode(response.body);
+          news = newData;
+          currentSkip = pageSize;
+          hasMoreData = newData.length == pageSize;
         });
       }
     } catch (e) {
@@ -86,6 +112,43 @@ class _NewsScreenState extends State<NewsScreen> with TickerProviderStateMixin {
 
     setState(() {
       isLoading = false;
+    });
+  }
+
+  Future<void> _loadMoreNews() async {
+    if (authToken == null || !hasMoreData || isLoadingMore) return;
+
+    setState(() {
+      isLoadingMore = true;
+    });
+
+    final headers = {
+      'accept': 'application/json',
+      'Authorization': 'Bearer $authToken',
+    };
+
+    try {
+      final response = await http.get(
+        Uri.parse(
+          '$apiPrefix/news/?skip=$currentSkip&limit=$pageSize&is_published=true',
+        ),
+        headers: headers,
+      );
+
+      if (response.statusCode == 200) {
+        final List<dynamic> newData = json.decode(response.body);
+        setState(() {
+          news.addAll(newData);
+          currentSkip += pageSize;
+          hasMoreData = newData.length == pageSize;
+        });
+      }
+    } catch (e) {
+      print('Error loading more news: $e');
+    }
+
+    setState(() {
+      isLoadingMore = false;
     });
   }
 
@@ -116,7 +179,7 @@ class _NewsScreenState extends State<NewsScreen> with TickerProviderStateMixin {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
             child: const Text(
-              'Berita Hari Ini',
+              'Daftar Berita',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -141,18 +204,19 @@ class _NewsScreenState extends State<NewsScreen> with TickerProviderStateMixin {
                         ),
                       )
                       : ListView.builder(
+                        controller: _scrollController,
                         padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: news.length,
+                        itemCount: news.length + (isLoadingMore ? 1 : 0),
                         itemBuilder: (context, index) {
+                          if (index == news.length) {
+                            return _buildLoadingMoreIndicator();
+                          }
                           final item = news[index];
                           return _buildNewsCard(item);
                         },
                       ),
             ),
           ),
-
-          // "Berita Lainnya" section
-          if (!isLoading && news.isNotEmpty) _buildOtherNewsSection(),
         ],
       ),
     );
@@ -177,6 +241,16 @@ class _NewsScreenState extends State<NewsScreen> with TickerProviderStateMixin {
           },
         );
       },
+    );
+  }
+
+  Widget _buildLoadingMoreIndicator() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      alignment: Alignment.center,
+      child: const CircularProgressIndicator(
+        valueColor: AlwaysStoppedAnimation<Color>(Colors.deepPurple),
+      ),
     );
   }
 
@@ -310,137 +384,6 @@ class _NewsScreenState extends State<NewsScreen> with TickerProviderStateMixin {
                     ],
                   ),
                 ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildOtherNewsSection() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Berita Lainnya',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 12),
-          SizedBox(
-            height: 140,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: news.length > 3 ? 3 : news.length,
-              itemBuilder: (context, index) {
-                final item = news[index];
-                return _buildSmallNewsCard(item);
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSmallNewsCard(dynamic item) {
-    final date =
-        item['date'] != null
-            ? DateFormat('dd MMM yyyy').format(DateTime.parse(item['date']))
-            : '-';
-
-    String photoUrl = item['photos']?[0]?['photo_url'] ?? '';
-    final imageUrl =
-        photoUrl.isNotEmpty
-            ? "$apiImagePrefix/$photoUrl"
-            : 'https://via.placeholder.com/150';
-
-    return GestureDetector(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => NewsDetailScreen(newsId: item['id']),
-          ),
-        );
-      },
-      child: Container(
-        width: 160,
-        margin: const EdgeInsets.only(right: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.08),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            ClipRRect(
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(8),
-              ),
-              child:
-                  authToken != null && photoUrl.isNotEmpty
-                      ? Image(
-                        image: CachedNetworkImageProvider(
-                          imageUrl,
-                          headers: {
-                            'accept': 'application/json',
-                            'Authorization': 'Bearer $authToken',
-                          },
-                        ),
-                        height: 80,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder:
-                            (context, error, stackTrace) => Container(
-                              height: 80,
-                              color: Colors.grey[300],
-                              child: const Icon(
-                                Icons.image_not_supported,
-                                size: 30,
-                              ),
-                            ),
-                      )
-                      : Container(
-                        height: 80,
-                        color: Colors.grey[300],
-                        child: const Icon(Icons.image_not_supported, size: 30),
-                      ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item['title'] ?? '',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const Spacer(),
-                    Text(
-                      date,
-                      style: TextStyle(fontSize: 10, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
               ),
             ),
           ],

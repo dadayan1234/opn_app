@@ -7,6 +7,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_html/flutter_html.dart';
 
 // TODO: Sesuaikan path import ini dengan struktur proyek Anda
+import '../services/auth_service.dart';
 import 'event_detail_screen.dart';
 import 'news_detail_screen.dart';
 import 'package:opn_app/services/api_service.dart';
@@ -187,8 +188,9 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   void _logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('access_token');
+    // Gunakan AuthService.logout() untuk membersihkan semua data
+    await AuthService.logout();
+
     if (mounted) {
       Navigator.of(context).pushReplacementNamed('/login');
     }
