@@ -390,7 +390,9 @@ class _BiodataFormScreenState extends State<BiodataFormScreen> {
                   border: OutlineInputBorder(),
                 ),
                 items: const [
-                  DropdownMenuItem(value: 'agama', child: Text('Divisi Agama')),
+                  DropdownMenuItem(value: 'agama',
+                  child: Text('Divisi Agama')
+                  ),
                   DropdownMenuItem(
                     value: 'sosial',
                     child: Text('Divisi Sosial'),
@@ -403,7 +405,13 @@ class _BiodataFormScreenState extends State<BiodataFormScreen> {
                     value: 'perlengkapan',
                     child: Text('Divisi Perlengkapan'),
                   ),
-                  DropdownMenuItem(value: 'media', child: Text('Divisi Media')),
+                  DropdownMenuItem(value: 'media', 
+                  child: Text('Divisi Media'),
+                  ),
+                  DropdownMenuItem(
+                    value: 'anggota',
+                    child: Text('Anggota'),
+                  ),
                 ],
                 onChanged: (val) => setState(() => _divisi = val),
                 validator:
