@@ -40,10 +40,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return 'Password harus mengandung minimal 1 angka';
     }
 
-    if (!password.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
-      return 'Password harus mengandung minimal 1 karakter spesial (!@#%^&*(),.?":{}|<>)';
-    }
-
     return null; // Password valid
   }
 
@@ -65,31 +61,36 @@ class _RegisterScreenState extends State<RegisterScreen> {
     return PasswordStrength.strong;
   }
 
+  // PERBAIKAN: Register dengan response handling dari backend
   void _register() async {
-    // Validate inputs
-    if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Username dan password tidak boleh kosong'),
-        ),
-      );
+    // Validasi username
+    if (_usernameController.text.isEmpty) {
+      _showSnackBar('Username tidak boleh kosong', isError: true);
       return;
     }
 
-    // Validasi keamanan password
+    if (_usernameController.text.length < 3) {
+      _showSnackBar('Username minimal 3 karakter', isError: true);
+      return;
+    }
+
+    // Validasi password
+    if (_passwordController.text.isEmpty) {
+      _showSnackBar('Password tidak boleh kosong', isError: true);
+      return;
+    }
+
     final passwordError = _validatePassword(_passwordController.text);
     if (passwordError != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(passwordError)));
+      _showSnackBar(passwordError, isError: true);
       return;
     }
 
+    // Validasi konfirmasi password
     if (_passwordController.text != _confirmPasswordController.text) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Password dan konfirmasi password harus sama'),
-        ),
+      _showSnackBar(
+        'Password dan konfirmasi password harus sama',
+        isError: true,
       );
       return;
     }
@@ -98,36 +99,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _isLoading = true;
     });
 
-    final username = _usernameController.text;
+    final username = _usernameController.text.trim();
     final password = _passwordController.text;
 
     try {
-      final success = await AuthService.register(username, password);
-      if (success) {
-        // Tampilkan pesan sukses
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Pendaftaran berhasil')));
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const LoginScreen()),
-          );
-        }
+      // Panggil register API
+      final result = await AuthService.register(username, password);
+
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        // ✅ Registration berhasil
+        _showSnackBar(
+          result['message'] ?? 'Pendaftaran berhasil!',
+          isError: false,
+        );
+
+        // Redirect ke login screen setelah 1 detik
+        await Future.delayed(const Duration(seconds: 1));
+        
+        if (!mounted) return;
+        
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
       } else {
-        // Tampilkan pesan gagal
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Pendaftaran gagal')));
-        }
+        // ❌ Registration gagal dengan pesan dari backend
+        _showSnackBar(
+          result['message'] ?? 'Pendaftaran gagal',
+          isError: true,
+        );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
-      }
+      if (!mounted) return;
+      _showSnackBar('Error: ${e.toString()}', isError: true);
     } finally {
       if (mounted) {
         setState(() {
@@ -135,6 +141,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
         });
       }
     }
+  }
+
+  /// Helper untuk menampilkan SnackBar dengan warna berbeda
+  void _showSnackBar(String message, {required bool isError}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+      ),
+    );
   }
 
   /// Widget untuk menampilkan indikator kekuatan password
@@ -223,6 +241,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
+                helperText: 'Minimal 3 karakter',
+                helperStyle: const TextStyle(fontSize: 11),
               ),
             ),
             const SizedBox(height: 15),
@@ -253,7 +273,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 4),
               child: Text(
-                'Password harus: minimal 8 karakter, huruf besar & kecil, angka, dan karakter spesial',
+                'Password harus: minimal 8 karakter, huruf besar & kecil, dan angka',
                 style: TextStyle(fontSize: 11, color: Colors.grey),
               ),
             ),

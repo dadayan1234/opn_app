@@ -231,7 +231,7 @@ class _NewsDetailScreenState extends State<NewsDetailScreen>
             ).format(DateTime.parse(newsDetail!['date']))
             : '-';
 
-    final author = newsDetail!['created_by'] == 1 ? 'Admin' : 'User';
+    final author = newsDetail!['created_by'] ?? 'Admin';
 
     String photoUrl = newsDetail!['photos']?[0]?['photo_url'] ?? '';
     final imageUrl = photoUrl.isNotEmpty ? "$apiImagePrefix/$photoUrl" : '';

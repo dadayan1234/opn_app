@@ -5,62 +5,129 @@ import 'package:shared_preferences/shared_preferences.dart';
 class AuthService {
   static const String baseUrl = 'https://beopn.pemudanambangan.site';
 
-  // Login dengan opsi menyimpan kredensial
-  static Future<bool> login(
+  // PERBAIKAN: Login dengan response handling yang lebih baik
+  static Future<Map<String, dynamic>> login(
     String username,
     String password, {
     bool saveCredentials = true,
   }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/api/v1/auth/token'),
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'accept': 'application/json',
-      },
-      body: {
-        'grant_type': 'password',
-        'username': username,
-        'password': password,
-        'scope': '',
-        'client_id': 'string',
-        'client_secret': 'string',
-      },
-    );
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/v1/auth/token'),
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'accept': 'application/json',
+        },
+        body: {
+          'grant_type': 'password',
+          'username': username,
+          'password': password,
+          'scope': '',
+          'client_id': 'string',
+          'client_secret': 'string',
+        },
+      );
 
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      final token = data['access_token'];
+      // ✅ Success (200)
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        final token = data['access_token'];
+        final message = data['message'] ?? 'Login successful.';
 
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('access_token', token);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('access_token', token);
 
-      // Simpan username dan password untuk auto-login
-      if (saveCredentials) {
-        await prefs.setString('saved_username', username);
-        await prefs.setString('saved_password', password);
-        print('Credentials saved for auto-login');
+        // Simpan username dan password untuk auto-login
+        if (saveCredentials) {
+          await prefs.setString('saved_username', username);
+          await prefs.setString('saved_password', password);
+          print('Credentials saved for auto-login');
+        }
+
+        return {
+          'success': true,
+          'message': message,
+          'token': token,
+        };
       }
-
-      return true;
-    } else {
-      return false;
+      // ❌ Bad Request (400) - Invalid credentials
+      else if (response.statusCode == 400) {
+        final data = json.decode(response.body);
+        return {
+          'success': false,
+          'message': data['detail'] ?? 'Invalid username or password.',
+        };
+      }
+      // ❌ Unauthorized (401)
+      else if (response.statusCode == 401) {
+        return {
+          'success': false,
+          'message': 'Username atau password salah.',
+        };
+      }
+      // ❌ Other errors
+      else {
+        return {
+          'success': false,
+          'message': 'Login gagal. Silakan coba lagi.',
+        };
+      }
+    } catch (e) {
+      // ❌ Network error
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
     }
   }
 
-  static Future<bool> register(String username, String password) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/api/v1/auth/register'),
-      headers: {
-        'Content-Type': 'application/json',
-        'accept': 'application/json',
-      },
-      body: json.encode({'username': username, 'password': password}),
-    );
+  // PERBAIKAN: Register dengan response handling yang lebih baik
+  static Future<Map<String, dynamic>> register(
+    String username,
+    String password,
+  ) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/api/v1/auth/register'),
+        headers: {
+          'Content-Type': 'application/json',
+          'accept': 'application/json',
+        },
+        body: json.encode({
+          'username': username,
+          'password': password,
+        }),
+      );
 
-    if (response.statusCode == 200) {
-      return await login(username, password);
-    } else {
-      return false;
+      // ✅ Success (200)
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        return {
+          'success': true,
+          'message': data['message'] ?? 'User registered successfully.',
+        };
+      }
+      // ❌ Bad Request (400) - Validation errors
+      else if (response.statusCode == 400) {
+        final data = json.decode(response.body);
+        return {
+          'success': false,
+          'message': data['detail'] ?? 'Registration failed.',
+        };
+      }
+      // ❌ Other errors
+      else {
+        return {
+          'success': false,
+          'message': 'Registration failed. Please try again.',
+        };
+      }
+    } catch (e) {
+      // ❌ Network error
+      return {
+        'success': false,
+        'message': 'Network error: ${e.toString()}',
+      };
     }
   }
 
@@ -78,15 +145,15 @@ class AuthService {
     print('Attempting auto-login for user: $username');
 
     // Login tanpa save credentials lagi (untuk avoid infinite loop)
-    final success = await login(username, password, saveCredentials: false);
+    final result = await login(username, password, saveCredentials: false);
 
-    if (success) {
+    if (result['success'] == true) {
       print('Auto-login successful');
+      return true;
     } else {
-      print('Auto-login failed');
+      print('Auto-login failed: ${result['message']}');
+      return false;
     }
-
-    return success;
   }
 
   static Future<Map<String, dynamic>?> getUserInfo() async {

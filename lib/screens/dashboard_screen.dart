@@ -757,28 +757,13 @@ class _DashboardScreenState extends State<DashboardScreen>
   }
 
   Widget _buildNewsCard(dynamic item) {
-    final date =
-        item['date'] != null
-            ? DateFormat(
-              'EEEE, dd MMM widesan',
-              'id_ID',
-            ).format(DateTime.parse(item['date']))
-            : '-';
-
-    String photoUrl = item['photos']?[0]?['photo_url'] ?? '';
+    final date = _formatNewsDate(item['date']);
+    final photoUrl = item['photos']?[0]?['photo_url'] ?? '';
     final imageUrl = photoUrl.isNotEmpty ? "$apiImagePrefix$photoUrl" : '';
-
-    final description =
-        item['description'] ?? 'Klik untuk membaca selengkapnya...';
+    final description = _stripHtmlTags(item['description'] ?? '');
 
     return GestureDetector(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => NewsDetailScreen(newsId: item['id']),
-          ),
-        );
-      },
+      onTap: () => _navigateToNewsDetail(item['id']),
       child: Card(
         margin: const EdgeInsets.only(bottom: 16),
         elevation: 3,
@@ -788,113 +773,168 @@ class _DashboardScreenState extends State<DashboardScreen>
         child: Stack(
           alignment: Alignment.bottomLeft,
           children: [
-            // Bagian Image (tidak berubah)
-            if (authToken != null && photoUrl.isNotEmpty)
-              Image(
-                image: CachedNetworkImageProvider(
-                  imageUrl,
-                  headers: {
-                    'accept': 'application/json',
-                    'Authorization': 'Bearer $authToken',
-                  },
-                ),
-                height: 160,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                loadingBuilder: (context, child, loadingProgress) {
-                  if (loadingProgress == null) return child;
-                  return Container(
-                    height: 160,
-                    color: Colors.grey[200],
-                    child: const Center(child: CircularProgressIndicator()),
-                  );
-                },
-                errorBuilder:
-                    (context, error, stackTrace) => Container(
-                      height: 160,
-                      color: Colors.grey[200],
-                      child: const Icon(Icons.broken_image),
-                    ),
-              )
-            else
-              Container(
-                height: 160,
-                color: Colors.grey[200],
-                child: const Icon(
-                  Icons.image_not_supported,
-                  color: Colors.grey,
-                  size: 40,
-                ),
-              ),
-
-            // Bagian Gradient (tidak berubah)
-            Container(
-              height: 160,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.black.withOpacity(0.7), Colors.transparent],
-                  begin: Alignment.bottomCenter,
-                  end: Alignment.center,
-                ),
-              ),
-            ),
-
-            // Bagian Konten Teks
-            Positioned.fill(
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item['title'] ?? '',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-
-                    // --- PERUBAHAN DI SINI ---
-                    Html(
-                      data: description,
-                      style: {
-                        "body": Style(
-                          margin: Margins.zero,
-                          padding: HtmlPaddings.zero,
-                          color: Colors.white.withOpacity(0.9),
-                          fontSize: FontSize(12),
-                          maxLines: 1,
-                          textOverflow: TextOverflow.ellipsis,
-                        ),
-                        "p": Style(
-                          margin: Margins.zero,
-                          padding: HtmlPaddings.zero,
-                        ),
-                      },
-                    ),
-
-                    // --- AKHIR PERUBAHAN ---
-                    const SizedBox(height: 8),
-                    Text(
-                      date,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            _buildNewsImage(photoUrl, imageUrl),
+            _buildNewsGradient(),
+            _buildNewsContent(item['title'] ?? '', description, date),
           ],
         ),
       ),
+    );
+  }
+
+  // Helper: Format tanggal berita
+  String _formatNewsDate(String? dateString) {
+    if (dateString == null) return '-';
+    try {
+      return DateFormat(
+        'EEEE, dd MMM yyyy',
+        'id_ID',
+      ).format(DateTime.parse(dateString));
+    } catch (e) {
+      return '-';
+    }
+  }
+
+  // Helper: Bersihkan HTML tags dari string
+  String _stripHtmlTags(String htmlString) {
+    if (htmlString.isEmpty) return 'Klik untuk membaca selengkapnya...';
+
+    final cleanText =
+        htmlString
+            .replaceAll(RegExp(r'<[^>]*>'), '') // Hapus HTML tags
+            .replaceAll(RegExp(r'\s+'), ' ') // Normalisasi whitespace
+            .trim();
+
+    return cleanText.isEmpty ? 'Klik untuk membaca selengkapnya...' : cleanText;
+  }
+
+  // Helper: Navigasi ke detail berita
+  void _navigateToNewsDetail(int newsId) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (context) => NewsDetailScreen(newsId: newsId)),
+    );
+  }
+
+  // Helper: Widget gambar berita
+  Widget _buildNewsImage(String photoUrl, String imageUrl) {
+    if (authToken == null || photoUrl.isEmpty) {
+      return _buildPlaceholderImage();
+    }
+
+    return Image(
+      image: CachedNetworkImageProvider(
+        imageUrl,
+        headers: {
+          'accept': 'application/json',
+          'Authorization': 'Bearer $authToken',
+        },
+      ),
+      height: 160,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return _buildLoadingPlaceholder();
+      },
+      errorBuilder: (context, error, stackTrace) => _buildErrorPlaceholder(),
+    );
+  }
+
+  // Helper: Placeholder saat tidak ada gambar
+  Widget _buildPlaceholderImage() {
+    return Container(
+      height: 160,
+      color: Colors.grey[200],
+      child: const Icon(
+        Icons.image_not_supported,
+        color: Colors.grey,
+        size: 40,
+      ),
+    );
+  }
+
+  // Helper: Loading placeholder
+  Widget _buildLoadingPlaceholder() {
+    return Container(
+      height: 160,
+      color: Colors.grey[200],
+      child: const Center(child: CircularProgressIndicator()),
+    );
+  }
+
+  // Helper: Error placeholder
+  Widget _buildErrorPlaceholder() {
+    return Container(
+      height: 160,
+      color: Colors.grey[200],
+      child: const Icon(Icons.broken_image),
+    );
+  }
+
+  // Helper: Gradient overlay
+  Widget _buildNewsGradient() {
+    return Container(
+      height: 160,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.black.withOpacity(0.7), Colors.transparent],
+          begin: Alignment.bottomCenter,
+          end: Alignment.center,
+        ),
+      ),
+    );
+  }
+
+  // Helper: Konten teks berita
+  Widget _buildNewsContent(String title, String description, String date) {
+    return Positioned.fill(
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.end,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildNewsTitle(title),
+            const SizedBox(height: 4),
+            _buildNewsDescription(description),
+            const SizedBox(height: 8),
+            _buildNewsDate(date),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Helper: Judul berita
+  Widget _buildNewsTitle(String title) {
+    return Text(
+      title,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        color: Colors.white,
+        fontWeight: FontWeight.bold,
+        fontSize: 16,
+        height: 1.3,
+      ),
+    );
+  }
+
+  // Helper: Deskripsi berita
+  Widget _buildNewsDescription(String description) {
+    return Text(
+      description,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 12),
+    );
+  }
+
+  // Helper: Tanggal berita
+  Widget _buildNewsDate(String date) {
+    return Text(
+      date,
+      style: const TextStyle(color: Colors.white70, fontSize: 12),
     );
   }
 

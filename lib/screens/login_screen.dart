@@ -17,11 +17,11 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _isLoading = false;
 
   void _login() async {
+    // Validasi input
     if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Username dan password tidak boleh kosong'),
-        ),
+      _showSnackBar(
+        'Username dan password tidak boleh kosong',
+        isError: true,
       );
       return;
     }
@@ -30,51 +30,65 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-    final username = _usernameController.text;
+    final username = _usernameController.text.trim();
     final password = _passwordController.text;
 
     try {
-      final success = await AuthService.login(username, password);
-      if (success) {
-        // Request notification permission after successful login
-        // _requestNotificationPermission();
-        await NotificationService().registerTokenAfterLogin();
+      // Panggil login API
+      final result = await AuthService.login(username, password);
 
+      if (!mounted) return;
+
+      if (result['success'] == true) {
+        // ✅ Login berhasil
+        _showSnackBar(
+          result['message'] ?? 'Login berhasil!',
+          isError: false,
+        );
+
+        // Register FCM token setelah login
+        try {
+          await NotificationService().registerTokenAfterLogin();
+        } catch (e) {
+          print('Failed to register FCM token: $e');
+        }
+
+        // Get user info untuk cek apakah sudah mengisi biodata
         final userInfo = await AuthService.getUserInfo();
+
+        if (!mounted) return;
 
         if (userInfo != null && userInfo['member_info'] != null) {
           final info = userInfo['member_info'];
+          
+          // Cek apakah full_name sudah diisi
           if (info['full_name'] == null ||
               info['full_name'].toString().isEmpty) {
-            if (mounted) Navigator.pushReplacementNamed(context, '/biodata');
+            // Redirect ke biodata jika belum lengkap
+            Navigator.pushReplacementNamed(context, '/biodata');
           } else {
+            // Redirect ke dashboard jika sudah lengkap
             final fullName = info['full_name'];
-            if (mounted) {
-              Navigator.pushReplacementNamed(
-                context,
-                '/dashboard',
-                arguments: fullName,
-              );
-            }
+            Navigator.pushReplacementNamed(
+              context,
+              '/dashboard',
+              arguments: fullName,
+            );
           }
         } else {
-          if (mounted) Navigator.pushReplacementNamed(context, '/biodata');
+          // Jika userInfo null, redirect ke biodata
+          Navigator.pushReplacementNamed(context, '/biodata');
         }
       } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Login gagal, cek username dan password'),
-            ),
-          );
-        }
+        // ❌ Login gagal dengan pesan dari backend
+        _showSnackBar(
+          result['message'] ?? 'Login gagal, cek username dan password',
+          isError: true,
+        );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Error: ${e.toString()}')));
-      }
+      if (!mounted) return;
+      _showSnackBar('Error: ${e.toString()}', isError: true);
     } finally {
       if (mounted) {
         setState(() {
@@ -84,21 +98,17 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  // Future<void> _requestNotificationPermission() async {
-  //   final notificationService = NotificationService();
-
-  //   // 1. Meminta izin notifikasi kepada pengguna.
-  //   bool permissionGranted = await notificationService.requestPermission();
-
-  //   if (permissionGranted) {
-  //     // Get FCM token
-  //     final token = await notificationService.getToken();
-  //     if (token != null) {
-  //       // Send the token to your server
-  //       await notificationService.sendTokenToServer(token);
-  //     }
-  //   }
-  // }
+  /// Helper untuk menampilkan SnackBar dengan warna berbeda
+  void _showSnackBar(String message, {required bool isError}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red : Colors.green,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -109,7 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const SizedBox(height: 60),
-            // Replace Placeholder with Image
+            // Logo image
             Image.asset('assets/images/logo_opn.png', height: 120, width: 120),
             const SizedBox(height: 20),
             const Text(
@@ -155,6 +165,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
+              onSubmitted: (_) => _login(), // Enter untuk submit
             ),
             const SizedBox(height: 20),
             _isLoading
@@ -180,7 +191,9 @@ class _LoginScreenState extends State<LoginScreen> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => RegisterScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => const RegisterScreen(),
+                  ),
                 );
               },
               child: const Text.rich(
