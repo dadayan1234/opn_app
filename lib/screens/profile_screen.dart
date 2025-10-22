@@ -44,6 +44,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     'lingkungan',
     'perlengkapan',
     'media',
+    'anggota',
   ];
 
   @override
@@ -500,12 +501,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             border: OutlineInputBorder(),
           ),
           items: const [
-            DropdownMenuItem(value: 'agama', 
-            child: Text('Divisi Agama')
-            ),
-            DropdownMenuItem(value: 'sosial', 
-            child: Text('Divisi Sosial')
-            ),
+            DropdownMenuItem(value: 'agama', child: Text('Divisi Agama')),
+            DropdownMenuItem(value: 'sosial', child: Text('Divisi Sosial')),
             DropdownMenuItem(
               value: 'lingkungan',
               child: Text('Divisi Lingkungan'),
@@ -514,13 +511,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               value: 'perlengkapan',
               child: Text('Divisi Perlengkapan'),
             ),
-            DropdownMenuItem(value: 'media', 
-            child: Text('Divisi Media'),
-            ),
-            DropdownMenuItem(
-              value: 'anggota',
-              child: Text('Anggota'),
-            ),
+            DropdownMenuItem(value: 'media', child: Text('Divisi Media')),
+            DropdownMenuItem(value: 'anggota', child: Text('Anggota')),
           ],
           onChanged: (value) => setState(() => _divisi = value),
           validator:

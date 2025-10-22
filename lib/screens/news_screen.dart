@@ -268,7 +268,7 @@ class _NewsScreenState extends State<NewsScreen> with TickerProviderStateMixin {
             ? DateFormat('dd MMMM yyyy').format(DateTime.parse(item['date']))
             : '-';
 
-    final author = item['created_by'] == 1 ? 'Admin' : 'User';
+    final author = item['created_by'] == 1 ? 'Admin' : 'Admin';
 
     String photoUrl = item['photos']?[0]?['photo_url'] ?? '';
     final imageUrl =
